@@ -1,2 +1,2 @@
-SRT timing indicator for NeoVim.
+SRT timing indicator for Neovim.
 
