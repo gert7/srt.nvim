@@ -1,7 +1,5 @@
 local M = {}
 
--- local Subtitle = require('subtitle').Subtitle
-
 local State = {
   index = 1,
   timing = 2,
@@ -28,15 +26,17 @@ function M.preproduce_pause_lines(config)
   local tm = config.tackle_middle
   local pause_lines = {}
 
+  local extra_spaces = string.rep(" ", config.extra_spaces)
+
   local function format(sample)
-    return (sample:gsub("%.", tl):gsub(",", tm):gsub(":", tr))
+    return (sample:gsub("%.", tl):gsub(",", tm):gsub(":", tr):gsub("&", extra_spaces))
   end
 
-  local sample1 = "                .:               (%s)"
-  local sample2 = "               .,,:              (%s)"
-  local sample3 = "              .,,,,:             (%s)"
-  local sample4 = "             .,,,,,,:            (%s)"
-  local sample5 = "            .,,,,,,,,:           (%s)"
+  local sample1 = "                .:               &(%s)"
+  local sample2 = "               .,,:              &(%s)"
+  local sample3 = "              .,,,,:             &(%s)"
+  local sample4 = "             .,,,,,,:            &(%s)"
+  local sample5 = "            .,,,,,,,,:           &(%s)"
   table.insert(pause_lines, format(sample1))
   table.insert(pause_lines, format(sample2))
   table.insert(pause_lines, format(sample3))
@@ -46,6 +46,9 @@ function M.preproduce_pause_lines(config)
 end
 
 local function get_pause_line(pause, config, pause_lines)
+  if not config.tackle_enabled then
+    return "                                 (%s)"
+  end
   if pause < config.min_pause then
     return pause_lines[1]
   elseif pause >= config.min_pause and pause < 1000 then
@@ -63,10 +66,6 @@ local function remove_tags(s)
   return s:gsub("<[^>]+>", "")
 end
 
-local function round_decimal(n, points)
-  return math.floor(n * 10 ^ points + 0.5) / 10 ^ points
-end
-
 function M.get_subs(buf, lines, config, data)
   local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 
@@ -77,7 +76,6 @@ function M.get_subs(buf, lines, config, data)
   end
 
   local state = State.index
-
 
   local diagnostics = {}
 
@@ -90,8 +88,15 @@ function M.get_subs(buf, lines, config, data)
   local last_lengths = {}
   local total_length = 1
   local last_timing_k = 0
+  local extra_spaces = string.rep(" ", config.extra_spaces)
 
   local start = vim.loop.hrtime()
+
+  local cps_mark = " (%d%%)"
+
+  if not config.length then
+    cps_mark = "    (%d%%)"
+  end
 
   for k, v in ipairs(lines) do
     if state == State.index and v ~= "" then
@@ -100,7 +105,7 @@ function M.get_subs(buf, lines, config, data)
         table.insert(diagnostics, {
           lnum = k,
           col = 0,
-          message = "Error reading line number!"
+          message = "Error reading subtitle index!"
         })
         vim.diagnostic.set(nsid, buf, diagnostics, {})
         return
@@ -132,13 +137,14 @@ function M.get_subs(buf, lines, config, data)
 
       local pauseline = k - 3
 
-      if pauseline > 0 then
+      if config.pause and pauseline > 0 then
         local opts = {
           id = pauseline,
           virt_text = { { string.format(get_pause_line(pause, config, data.pause_lines), fmt_s(pause)), "Srt" } },
           virt_text_pos = 'eol'
         }
-        local mark_id = vim.api.nvim_buf_set_extmark(buf, nsid, pauseline, 0, opts)
+        vim.api.nvim_buf_set_extmark(buf, nsid, pauseline, 0, opts)
+
         if pause < 0 then
           table.insert(diagnostics, {
             lnum = pauseline,
@@ -159,12 +165,23 @@ function M.get_subs(buf, lines, config, data)
       if v == "" then
         local cps = total_length / last_timing * 1000
 
+        local finbar = ""
+
+        if config.length then
+          finbar = finbar .. extra_spaces .. " =  " .. fmt_s(last_timing)
+        end
+
+        if config.cps_warning and cps > config.max_cps then
+          local percent = cps / config.max_cps * 100
+          finbar = finbar .. string.format(cps_mark, percent)
+        end
+
         local opts = {
           id = last_timing_k,
-          virt_text = { { string.format(" =  %s [%s]", fmt_s(last_timing), round_decimal(cps, 1)), "Srt" } },
+          virt_text = { { finbar, "Srt" } },
           virt_text_pos = 'eol'
         }
-        local mark_id = vim.api.nvim_buf_set_extmark(buf, nsid, last_timing_k - 1, 0, opts)
+        vim.api.nvim_buf_set_extmark(buf, nsid, last_timing_k - 1, 0, opts)
 
         state = State.index
         line_count = 0
@@ -180,9 +197,40 @@ function M.get_subs(buf, lines, config, data)
   end
 
   local elapsed = vim.loop.hrtime() - start
-  -- print(string.format("Srtnvim Elapsed time: %dmicros", elapsed / 1000))
+  print(string.format("Srtnvim Elapsed time: %dmicros", elapsed / 1000))
 
   vim.diagnostic.set(nsid, buf, diagnostics, {})
+end
+
+--- Pure function to validate an entire srt file.
+-- This does not validate anything related to durations.
+-- It only checks if indices, timings and structures are well-formed.
+function M.validate(lines)
+  local state = State.index
+
+  for k, v in ipairs(lines) do
+    if state == State.index and v ~= "" then
+      local n = tonumber(v)
+      if not n then
+        return false, "Error reading subtitle index!"
+      end
+      state = State.timing
+    elseif state == State.timing then
+      local f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi = string.gmatch(v, matcher)()
+      if not t_mi then
+        return false, "Error reading duration!"
+      end
+
+      state = State.subtitle
+    elseif state == State.subtitle then
+      v = v:gsub("^%s*(.-)%s*$", "%1")
+      if v == "" then
+        state = State.index
+      end
+    end
+  end
+
+  return true, ""
 end
 
 return M
