@@ -23,9 +23,9 @@ end
 local matcher = "(%d%d):(%d%d):(%d%d),(%d%d%d)%s%-%->%s(%d%d):(%d%d):(%d%d),(%d%d%d)"
 
 function M.preproduce_pause_lines(config)
-  local tl = config.tackle_left or config.tackle or "."
-  local tr = config.tackle_right or config.tackle or "."
-  local tm = config.tackle_middle or " "
+  local tl = config.tackle_left or config.tackle
+  local tr = config.tackle_right or config.tackle
+  local tm = config.tackle_middle
   local pause_lines = {}
 
   local function format(sample)
@@ -50,21 +50,34 @@ local function get_pause_line(pause, config, pause_lines)
     return pause_lines[1]
   elseif pause >= config.min_pause and pause < 1000 then
     return pause_lines[2]
-  elseif pause >= 1000 and pause < 2000 then
+  elseif pause >= 1000 and pause < 5000 then
     return pause_lines[3]
-  elseif pause >= 2000 and pause < 10000 then
+  elseif pause >= 5000 and pause < 10000 then
     return pause_lines[4]
   else
     return pause_lines[5]
   end
 end
 
-function M.get_subs(buf, lines, config, data)
-  local state = State.index
+local function remove_tags(s)
+  return s:gsub("<[^>]+>", "")
+end
 
+local function round_decimal(n, points)
+  return math.floor(n * 10 ^ points + 0.5) / 10 ^ points
+end
+
+function M.get_subs(buf, lines, config, data)
   local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 
   vim.api.nvim_buf_clear_namespace(buf, nsid, 0, -1)
+
+  if config.enabled == false then
+    return
+  end
+
+  local state = State.index
+
 
   local diagnostics = {}
 
@@ -117,22 +130,24 @@ function M.get_subs(buf, lines, config, data)
 
       local pause = cur_start - last_end
 
-      if k - 3 > 0 then
+      local pauseline = k - 3
+
+      if pauseline > 0 then
         local opts = {
-          id = k - 3,
+          id = pauseline,
           virt_text = { { string.format(get_pause_line(pause, config, data.pause_lines), fmt_s(pause)), "Srt" } },
           virt_text_pos = 'eol'
         }
-        local mark_id = vim.api.nvim_buf_set_extmark(buf, nsid, k - 3, 0, opts)
+        local mark_id = vim.api.nvim_buf_set_extmark(buf, nsid, pauseline, 0, opts)
         if pause < 0 then
           table.insert(diagnostics, {
-            lnum = k - 3,
+            lnum = pauseline,
             col = 0,
             message = "Subtitle overlaps with previous subtitle!"
           })
         elseif pause < config.min_pause then
           table.insert(diagnostics, {
-            lnum = k - 3,
+            lnum = pauseline,
             col = 0,
             message = "Pause is too short!"
           })
@@ -142,11 +157,11 @@ function M.get_subs(buf, lines, config, data)
     elseif state == State.subtitle then
       v = v:gsub("^%s*(.-)%s*$", "%1")
       if v == "" then
-        local mpc = last_timing / total_length
+        local cps = total_length / last_timing * 1000
 
         local opts = {
           id = last_timing_k,
-          virt_text = { { string.format(" =  %s [%d]", fmt_s(last_timing), mpc), "Srt" } },
+          virt_text = { { string.format(" =  %s [%s]", fmt_s(last_timing), round_decimal(cps, 1)), "Srt" } },
           virt_text_pos = 'eol'
         }
         local mark_id = vim.api.nvim_buf_set_extmark(buf, nsid, last_timing_k - 1, 0, opts)
@@ -156,15 +171,16 @@ function M.get_subs(buf, lines, config, data)
         last_lengths = {}
         total_length = 1
       else
-        table.insert(last_lengths, v:len())
-        total_length = total_length + v:len()
+        local clean_s = remove_tags(v)
+        table.insert(last_lengths, clean_s:len())
+        total_length = total_length + clean_s:len()
         line_count = line_count + 1
       end
     end
   end
 
   local elapsed = vim.loop.hrtime() - start
-  print(string.format("Elapsed time: %dmicros", elapsed / 1000))
+  -- print(string.format("Srtnvim Elapsed time: %dmicros", elapsed / 1000))
 
   vim.diagnostic.set(nsid, buf, diagnostics, {})
 end
