@@ -1,4 +1,5 @@
-local sub_read = require("srtnvim/get_subs")
+local sub_read = require("srtnvim.get_subs")
+require("srtnvim.commands")
 
 local M = {}
 
@@ -36,7 +37,7 @@ vim.api.nvim_create_user_command("SrtToggle", function ()
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_get_option(buf, "filetype") == "srt" then
       in_srt_file = ""
-      local lines = vim.api.nvim_buf_get_lines(buf, 0, vim.api.nvim_buf_line_count(buf), false)
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
       sub_read.get_subs(buf, lines, config, data)
     end
   end

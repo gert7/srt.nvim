@@ -1,5 +1,7 @@
 local M = {}
 
+local subtitle = require("srtnvim.subtitle")
+
 local State = {
   index = 1,
   timing = 2,
@@ -85,10 +87,10 @@ function M.get_subs(buf, lines, config, data)
 
   local line_count = 0
   local last_timing = 0
-  local last_lengths = {}
   local total_length = 1
   local last_timing_k = 0
   local extra_spaces = string.rep(" ", config.extra_spaces)
+  local last_index = 0
 
   local start = vim.loop.hrtime()
 
@@ -110,6 +112,15 @@ function M.get_subs(buf, lines, config, data)
         vim.diagnostic.set(nsid, buf, diagnostics, {})
         return
       end
+
+      if n ~= last_index + 1 then
+        table.insert(diagnostics, {
+          lnum = k - 1,
+          col = 0,
+          message = "Subtitle index is not sequential!"
+        })
+      end
+      last_index = n
       state = State.timing
     elseif state == State.timing then
       local f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi = string.gmatch(v, matcher)()
@@ -125,8 +136,8 @@ function M.get_subs(buf, lines, config, data)
 
       last_timing_k = k
 
-      local last_f = f_mi + f_s * 1000 + f_m * 60000 + f_h * 3600000
-      local last_t = t_mi + t_s * 1000 + t_m * 60000 + t_h * 3600000
+      local last_f = subtitle.to_ms(f_h, f_m, f_s, f_mi)
+      local last_t = subtitle.to_ms(t_h, t_m, t_s, t_mi)
       last_timing = last_t - last_f
 
       last_end = cur_end
@@ -193,11 +204,9 @@ function M.get_subs(buf, lines, config, data)
 
         state = State.index
         line_count = 0
-        last_lengths = {}
         total_length = 1
       else
         local clean_s = remove_tags(v)
-        table.insert(last_lengths, clean_s:len())
         total_length = total_length + clean_s:len()
         line_count = line_count + 1
       end
@@ -210,35 +219,52 @@ function M.get_subs(buf, lines, config, data)
   vim.diagnostic.set(nsid, buf, diagnostics, {})
 end
 
---- Pure function to validate an entire srt file.
--- This does not validate anything related to durations.
--- It only checks if indices, timings and structures are well-formed.
-function M.validate(lines)
+function M.parse(lines)
   local state = State.index
 
+  local subtitles = {}
+
+  local next_subtitle = subtitle.Subtitle.blank()
+
   for k, v in ipairs(lines) do
-    if state == State.index and v ~= "" then
-      local n = tonumber(v)
-      if not n then
-        return false, { "Error reading subtitle index!", k }
+    if state == State.index then
+      if v == "" then
+        table.insert(next_subtitle.line_lengths, 0)
+      else
+        local n = tonumber(v)
+        if not n then
+          return nil, { "Error reading subtitle index!", k }
+        end
+        next_subtitle.line_pos = k
+        next_subtitle.index = n
+        state = State.timing
       end
-      state = State.timing
     elseif state == State.timing then
       local f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi = string.gmatch(v, matcher)()
       if not t_mi then
-        return false, { "Error reading duration!", k }
+        return nil, { "Error reading duration!", k }
       end
+      local last_f = subtitle.to_ms(f_h, f_m, f_s, f_mi)
+      local last_t = subtitle.to_ms(t_h, t_m, t_s, t_mi)
+      next_subtitle.start_ms = last_f
+      next_subtitle.end_ms = last_t
+      next_subtitle.length_ms = last_t - last_f
 
       state = State.subtitle
     elseif state == State.subtitle then
       v = v:gsub("^%s*(.-)%s*$", "%1")
       if v == "" then
+        table.insert(subtitles, next_subtitle)
+        next_subtitle = subtitle.Subtitle.blank()
         state = State.index
+      else
+        local clean_s = remove_tags(v)
+        table.insert(next_subtitle.line_lengths, clean_s:len())
       end
     end
   end
 
-  return true, ""
+  return subtitles, nil
 end
 
 return M
