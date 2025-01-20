@@ -149,13 +149,13 @@ function M.get_subs(buf, lines, config, data)
           table.insert(diagnostics, {
             lnum = pauseline,
             col = 0,
-            message = "Subtitle overlaps with previous subtitle!"
+            message = "Subtitle overlaps with previous subtitle"
           })
         elseif pause < config.min_pause then
           table.insert(diagnostics, {
             lnum = pauseline,
             col = 0,
-            message = "Pause is too short!"
+            message = "Pause is too short"
           })
         end
       end
@@ -165,20 +165,28 @@ function M.get_subs(buf, lines, config, data)
       if v == "" then
         local cps = total_length / last_timing * 1000
 
-        local finbar = ""
+        if config.min_duration ~= -1 and last_timing < config.min_duration then
+          table.insert(diagnostics, {
+            lnum = last_timing_k - 1,
+            col = 0,
+            message = "Subtitle is too short"
+          })
+        end
+
+        local dur_bar = ""
 
         if config.length then
-          finbar = finbar .. extra_spaces .. " =  " .. fmt_s(last_timing)
+          dur_bar = dur_bar .. extra_spaces .. " =  " .. fmt_s(last_timing)
         end
 
         if config.cps_warning and cps > config.max_cps then
           local percent = cps / config.max_cps * 100
-          finbar = finbar .. string.format(cps_mark, percent)
+          dur_bar = dur_bar .. string.format(cps_mark, percent)
         end
 
         local opts = {
-          id = last_timing_k,
-          virt_text = { { finbar, "Srt" } },
+          id = last_timing_k - 1,
+          virt_text = { { dur_bar, "Srt" } },
           virt_text_pos = 'eol'
         }
         vim.api.nvim_buf_set_extmark(buf, nsid, last_timing_k - 1, 0, opts)
@@ -212,13 +220,13 @@ function M.validate(lines)
     if state == State.index and v ~= "" then
       local n = tonumber(v)
       if not n then
-        return false, "Error reading subtitle index!"
+        return false, { "Error reading subtitle index!", k }
       end
       state = State.timing
     elseif state == State.timing then
       local f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi = string.gmatch(v, matcher)()
       if not t_mi then
-        return false, "Error reading duration!"
+        return false, { "Error reading duration!", k }
       end
 
       state = State.subtitle

@@ -11,6 +11,7 @@ local defaults = {
   cps_warning = true,
   tackle_enabled = true,
   min_pause = 100,
+  min_duration = 1000,
   max_duration = -1,
   tackle = ".",
   tackle_middle = " ",
@@ -57,14 +58,5 @@ vim.api.nvim_create_autocmd({ "InsertLeave", "TextChanged", "BufEnter" }, {
     sub_read.get_subs(ev.buf, lines, config, data)
   end
 })
-
--- vim.api.nvim_create_autocmd({ "BufEnter" }, {
---   group = augroup,
---   pattern = { "*.srt"},
---   callback = function(ev)
---     print(string.format('event fired: %s', vim.inspect(ev)))
---     print(string.format('buffer number %d', ev.buf))
---   end
--- })
 
 return M
