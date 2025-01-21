@@ -1,5 +1,5 @@
 local sub_read = require("srtnvim.get_subs")
-require("srtnvim.commands")
+local commands = require("srtnvim.commands")
 
 local M = {}
 
@@ -17,7 +17,12 @@ local defaults = {
   tackle = ".",
   tackle_middle = " ",
   max_cps = 21,
-  extra_spaces = 0
+  extra_spaces = 0,
+  -- modes:
+  -- "half" - split in half precisely
+  -- "length" - allocate time based on the length of the resulting text
+  split_mode = "length",
+  split_with_min_pause = true
 }
 
 local config = vim.tbl_deep_extend("keep", defaults, {})
@@ -29,6 +34,7 @@ function M.setup(user_opts)
   data = {
     pause_lines = sub_read.preproduce_pause_lines(config)
   }
+  commands.set_config(config)
 end
 
 vim.api.nvim_create_user_command("SrtToggle", function ()

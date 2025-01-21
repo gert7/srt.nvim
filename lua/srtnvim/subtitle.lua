@@ -22,7 +22,7 @@ function Subtitle.create(line_pos, index, length_ms, line_lengths, start_ms, end
   return t
 end
 
-function Subtitle.blank() return Subtitle.create(0, 0, 0, { }, 0, 0) end
+function Subtitle.blank() return Subtitle.create(0, 0, 0, {}, 0, 0) end
 
 function M.to_ms(h, m, s, mi)
   return mi + s * 1000 + m * 60000 + h * 3600000
