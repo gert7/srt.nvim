@@ -92,8 +92,6 @@ function M.get_subs(buf, lines, config, data)
   local extra_spaces = string.rep(" ", config.extra_spaces)
   local last_index = 0
 
-  local start = vim.loop.hrtime()
-
   local cps_mark = " (%d%%)"
 
   if not config.length then
@@ -212,9 +210,6 @@ function M.get_subs(buf, lines, config, data)
       end
     end
   end
-
-  local elapsed = vim.loop.hrtime() - start
-  print(string.format("Srtnvim Elapsed time: %dmicros", elapsed / 1000))
 
   vim.diagnostic.set(nsid, buf, diagnostics, {})
 end
