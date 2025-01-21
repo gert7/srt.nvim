@@ -85,12 +85,15 @@ vim.api.nvim_create_user_command("SrtMerge", function ()
 end, { desc = "Merge the subtitle down" })
 
 vim.api.nvim_create_user_command("SrtSplit", function (opts)
-  local split_mode = opts.args or config.split_mode
+  local split_mode = config.split_mode
+  if opts.args ~= "" then
+    split_mode = opts.args
+  end
   if split_mode ~= "length" and split_mode ~= "half" then
     print("Invalid split mode")
     return
   end
-  -- local bm_start = vim.loop.hrtime()
+  local bm_start = vim.loop.hrtime()
   local buf = vim.api.nvim_get_current_buf()
   local line = vim.api.nvim_win_get_cursor(0)[1]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -159,8 +162,8 @@ vim.api.nvim_create_user_command("SrtSplit", function (opts)
 
   vim.api.nvim_buf_set_lines(buf, split_point, split_point, false, new_header)
 
-  -- local bm_total = vim.loop.hrtime() - bm_start
-  -- print("Split took " .. bm_total / 1000000 .. "ms") 
+  local bm_total = vim.loop.hrtime() - bm_start
+  print("Split took " .. bm_total / 1000000 .. "ms") 
 end, { desc = "Split the subtitle in two", nargs = "?", complete = function()
   return { "length", "half" }
 end})
