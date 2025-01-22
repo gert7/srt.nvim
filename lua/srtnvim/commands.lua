@@ -43,6 +43,21 @@ local function make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
   return string.format("%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d", f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
 end
 
+--- Add a number to all indices in a table of subtitles
+-- @param lines table of lines from the .srt file
+-- @param subs table of subtitles
+-- @param start index of subtitle to start from
+-- @param n number to add to the indices
+-- @return modified table of lines to be placed into the buffer
+local function add_to_indices(lines, subs, start, n)
+  local offset = subs[start].line_pos - 1
+  for i = start, #subs do
+    local sub = subs[i]
+    lines[sub.line_pos - offset] = tostring(sub.index + n)
+  end
+  return lines
+end
+
 vim.api.nvim_create_user_command("SrtMerge", function ()
   local bm_start = vim.loop.hrtime()
   local buf = vim.api.nvim_get_current_buf()
@@ -65,10 +80,9 @@ vim.api.nvim_create_user_command("SrtMerge", function ()
     return
   end
 
-  for i = sub_i + 1, #subs do
-    local sub = subs[i]
-    vim.api.nvim_buf_set_lines(buf, sub.line_pos - 1, sub.line_pos, false, {tostring(i - 1)})
-  end
+  local ind_lines = vim.api.nvim_buf_get_lines(buf, subs[sub_i + 1].line_pos - 1, -1, false)
+  local new_lines = add_to_indices(ind_lines, subs, sub_i + 1, -1)
+  vim.api.nvim_buf_set_lines(buf, subs[sub_i + 1].line_pos - 1, -1, false, new_lines)
 
   local sub = subs[sub_i]
   local next = subs[sub_i + 1]
@@ -122,10 +136,9 @@ vim.api.nvim_create_user_command("SrtSplit", function (opts)
     return
   end
 
-  for i = sub_i + 1, #subs do
-    local sub = subs[i]
-    vim.api.nvim_buf_set_lines(buf, sub.line_pos - 1, sub.line_pos, false, {tostring(i + 1)})
-  end
+  local ind_lines = vim.api.nvim_buf_get_lines(buf, subs[sub_i + 1].line_pos - 1, -1, false)
+  local new_lines = add_to_indices(ind_lines, subs, sub_i + 1, 1)
+  vim.api.nvim_buf_set_lines(buf, subs[sub_i + 1].line_pos - 1, -1, false, new_lines)
 
   local split_point = sub.line_pos + 1 + line_count / 2
 
