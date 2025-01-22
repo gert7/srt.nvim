@@ -134,13 +134,21 @@ function M.get_subs(buf, lines, config, data)
 
       last_timing_k = k
 
-      local last_f = subtitle.to_ms(f_h, f_m, f_s, f_mi)
-      local last_t = subtitle.to_ms(t_h, t_m, t_s, t_mi)
-      last_timing = last_t - last_f
+      local from = subtitle.to_ms(f_h, f_m, f_s, f_mi)
+      local to = subtitle.to_ms(t_h, t_m, t_s, t_mi)
+      last_timing = to - from
+
+      if from < cur_start then
+        table.insert(diagnostics, {
+          lnum = k - 1,
+          col = 0,
+          message = "Subtitle appears before previous subtitle"
+        })
+      end
 
       last_end = cur_end
-      cur_start = last_f
-      cur_end = last_t
+      cur_start = from
+      cur_end = to
 
       local pause = cur_start - last_end
 
@@ -211,6 +219,16 @@ function M.get_subs(buf, lines, config, data)
     end
   end
 
+  if state == State.timing then
+    table.insert(diagnostics, {
+      lnum = #lines,
+      col = 0,
+      message = "Subtitle is not terminated"
+    })
+  end
+
+  print(line_count)
+
   vim.diagnostic.set(nsid, buf, diagnostics, {})
 end
 
@@ -257,6 +275,10 @@ function M.parse(lines)
         table.insert(next_subtitle.line_lengths, clean_s:len())
       end
     end
+  end
+
+  if state == State.subtitle then
+    table.insert(subtitles, next_subtitle)
   end
 
   return subtitles, nil

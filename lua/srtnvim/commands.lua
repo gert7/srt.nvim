@@ -58,8 +58,15 @@ local function add_to_indices(lines, subs, start, n)
   return lines
 end
 
+--- Fix all indices in a file
+local function fix_indices(lines, subs)
+  for i, v in ipairs(subs) do
+    lines[v.line_pos] = tostring(i)
+  end
+  return lines
+end
+
 vim.api.nvim_create_user_command("SrtMerge", function ()
-  local bm_start = vim.loop.hrtime()
   local buf = vim.api.nvim_get_current_buf()
   local line = vim.api.nvim_win_get_cursor(0)[1]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -93,9 +100,6 @@ vim.api.nvim_create_user_command("SrtMerge", function ()
   local t_h, t_m, t_s, t_mi = subtitle.from_ms(next.end_ms)
   local dur_line = make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
   vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false, {dur_line})
-
-  local bm_total = vim.loop.hrtime() - bm_start
-  print("Merge took " .. bm_total / 1000000 .. "ms")
 end, { desc = "Merge the subtitle down" })
 
 vim.api.nvim_create_user_command("SrtSplit", function (opts)
@@ -107,7 +111,6 @@ vim.api.nvim_create_user_command("SrtSplit", function (opts)
     print("Invalid split mode")
     return
   end
-  local bm_start = vim.loop.hrtime()
   local buf = vim.api.nvim_get_current_buf()
   local line = vim.api.nvim_win_get_cursor(0)[1]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -175,10 +178,52 @@ vim.api.nvim_create_user_command("SrtSplit", function (opts)
 
   vim.api.nvim_buf_set_lines(buf, split_point, split_point, false, new_header)
 
-  local bm_total = vim.loop.hrtime() - bm_start
-  print("Split took " .. bm_total / 1000000 .. "ms") 
 end, { desc = "Split the subtitle in two", nargs = "?", complete = function()
   return { "length", "half" }
 end})
+
+local function fix_indices_buf(buf)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local subs, err = get_subs.parse(lines)
+  if err then
+    print("Error: " .. err[1] .. " on line " .. err[2])
+    return
+  end
+  local new_lines = fix_indices(lines, subs)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines)
+end
+
+vim.api.nvim_create_user_command("SrtFixIndex", function ()
+  local buf = vim.api.nvim_get_current_buf()
+  fix_indices_buf(buf)
+end, { desc = "Fix the indices of the subtitles" })
+
+vim.api.nvim_create_user_command("SrtSort", function ()
+  local buf = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local subs, err = get_subs.parse(lines)
+  if err then
+    print("Error: " .. err[1] .. " on line " .. err[2])
+    return
+  end
+
+  table.sort(subs, function(a, b)
+    return a.start_ms < b.start_ms
+  end)
+
+  local new_lines = {}
+  local index = 1
+  for _, sub in ipairs(subs) do
+    local start_line = sub.line_pos
+    table.insert(new_lines, tostring(index))
+    for i = start_line + 1, start_line + 1 + #sub.line_lengths do
+      table.insert(new_lines, lines[i])
+    end
+    table.insert(new_lines, "")
+    index = index + 1
+  end
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines)
+end, { desc = "Sort the subtitles by starting times" })
 
 return M
