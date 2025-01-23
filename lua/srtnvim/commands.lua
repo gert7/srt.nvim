@@ -3,10 +3,12 @@ local subtitle = require("srtnvim.subtitle")
 
 local M = {}
 
-local config = {}
+local get_config = function ()
+  return {}
+end
 
 function M.set_config(cfg)
-  config = cfg
+  get_config = cfg
 end
 
 local function sum_table(t, s, f)
@@ -103,7 +105,7 @@ vim.api.nvim_create_user_command("SrtMerge", function ()
 end, { desc = "Merge the subtitle down" })
 
 vim.api.nvim_create_user_command("SrtSplit", function (opts)
-  local split_mode = config.split_mode
+  local split_mode = get_config().split_mode
   if opts.args ~= "" then
     split_mode = opts.args
   end
@@ -146,8 +148,8 @@ vim.api.nvim_create_user_command("SrtSplit", function (opts)
   local split_point = sub.line_pos + 1 + line_count / 2
 
   local mp = 0
-  if config.split_with_min_pause then
-    mp = config.min_pause
+  if get_config().split_with_min_pause then
+    mp = get_config().min_pause
   end
 
   local split_ms = 0
@@ -157,7 +159,7 @@ vim.api.nvim_create_user_command("SrtSplit", function (opts)
     local length_second = sum_table(sub.line_lengths, line_count / 2 + 1, line_count)
     local p = length_first / (length_first + length_second)
     split_ms = sub.start_ms + sub.length_ms * p
-  else
+  else -- split_mode == "half"
     split_ms = sub.start_ms + sub.length_ms / 2
   end
 
@@ -225,5 +227,69 @@ vim.api.nvim_create_user_command("SrtSort", function ()
 
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines)
 end, { desc = "Sort the subtitles by starting times" })
+
+local function fix_timing(buf, lines, subs, i)
+  local sub = subs[i]
+  local next = subs[i + 1]
+  if sub.start_ms > sub.end_ms then
+    print("Subtitle " .. sub.index .. " has a negative duration")
+  elseif sub.end_ms > next.start_ms then
+    local mp = 0
+    local conf = get_config()
+    if conf.fix_with_min_pause then
+      mp = conf.min_pause
+    end
+    local new_end = next.start_ms - mp
+
+    local first_start = lines[sub.line_pos + 1]:sub(1, 17)
+    local fe_h, fe_m, fe_s, fe_mi = subtitle.from_ms(new_end)
+    vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false, {first_start .. make_dur(fe_h, fe_m, fe_s, fe_mi)})
+    return true
+  else
+    return false
+  end
+end
+
+vim.api.nvim_create_user_command("SrtFixTiming", function ()
+  local buf = vim.api.nvim_get_current_buf()
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local subs, err = get_subs.parse(lines)
+  if err then
+    print("Error: " .. err[1] .. " on line " .. err[2])
+    return
+  end
+  local sub_i = find_subtitle(subs, line)
+
+  if sub_i ~= #subs then
+    if fix_timing(buf, lines, subs, sub_i) then
+      print("Fixed timing for subtitle.")
+    else
+      print("Nothing to fix for subtitle.")
+    end
+  end
+end, { desc = "Fix timing for the current subtitle" })
+
+vim.api.nvim_create_user_command("SrtFixTimingAll", function ()
+  local buf = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local subs, err = get_subs.parse(lines)
+  if err then
+    print("Error: " .. err[1] .. " on line " .. err[2])
+    return
+  end
+
+  local count = 0
+  for i = 1, #subs - 1 do
+    if fix_timing(buf, lines, subs, i) then
+      count = count + 1
+    end
+  end
+  if count > 0 then
+    print("Fixed timings for " .. count .. " subtitles.")
+  else
+    print("No timings to fix.")
+  end
+end, { desc = "Fix timing for all subtitles" })
 
 return M

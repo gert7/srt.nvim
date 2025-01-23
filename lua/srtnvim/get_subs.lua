@@ -227,8 +227,6 @@ function M.get_subs(buf, lines, config, data)
     })
   end
 
-  print(line_count)
-
   vim.diagnostic.set(nsid, buf, diagnostics, {})
 end
 

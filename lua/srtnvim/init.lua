@@ -22,19 +22,24 @@ local defaults = {
   -- "half" - split in half precisely
   -- "length" - allocate time based on the length of the resulting text
   split_mode = "length",
-  split_with_min_pause = true
+  split_with_min_pause = true,
+  fix_with_min_pause = true
 }
 
 local config = vim.tbl_deep_extend("keep", defaults, {})
 
 local data = {}
 
+local function get_config()
+  return config
+end
+
 function M.setup(user_opts)
   config = vim.tbl_deep_extend("force", defaults, user_opts or {})
   data = {
     pause_lines = sub_read.preproduce_pause_lines(config)
   }
-  commands.set_config(config)
+  commands.set_config(get_config)
 end
 
 vim.api.nvim_create_user_command("SrtToggle", function ()
