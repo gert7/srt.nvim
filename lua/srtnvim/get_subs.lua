@@ -68,7 +68,7 @@ local function remove_tags(s)
   return s:gsub("<[^>]+>", "")
 end
 
-function M.get_subs(buf, lines, config, data)
+function M.annotate_subs(buf, lines, config, data, has_groups)
   local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 
   vim.api.nvim_buf_clear_namespace(buf, nsid, 0, -1)

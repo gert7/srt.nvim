@@ -1,4 +1,4 @@
-local sub_read = require("srtnvim.get_subs")
+local get_subs = require("srtnvim.get_subs")
 local commands = require("srtnvim.commands")
 
 local M = {}
@@ -37,7 +37,7 @@ end
 function M.setup(user_opts)
   config = vim.tbl_deep_extend("force", defaults, user_opts or {})
   data = {
-    pause_lines = sub_read.preproduce_pause_lines(config)
+    pause_lines = get_subs.preproduce_pause_lines(config)
   }
   commands.set_config(get_config)
 end
@@ -49,7 +49,7 @@ vim.api.nvim_create_user_command("SrtToggle", function ()
     if vim.api.nvim_buf_get_option(buf, "filetype") == "srt" then
       in_srt_file = ""
       local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-      sub_read.get_subs(buf, lines, config, data)
+      get_subs.annotate_subs(buf, lines, config, data)
     end
   end
   if config.enabled then
@@ -66,8 +66,7 @@ vim.api.nvim_create_autocmd({ "InsertLeave", "TextChanged", "BufEnter" }, {
   pattern = { "*.srt" },
   callback = function(ev)
     local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, vim.api.nvim_buf_line_count(ev.buf), false)
-    -- print(vim.inspect(config))
-    sub_read.get_subs(ev.buf, lines, config, data)
+    get_subs.annotate_subs(ev.buf, lines, config, data, false)
   end
 })
 

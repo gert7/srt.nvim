@@ -292,4 +292,43 @@ vim.api.nvim_create_user_command("SrtFixTimingAll", function ()
   end
 end, { desc = "Fix timing for all subtitles" })
 
+--- Parse a timing input
+-- Either in milliseconds
+-- Or at least some partial form of hh:mm:ss,mss
+-- @param input string to parse
+local function parse_time(string)
+  local neg = 1
+  if string:sub(1, 1) == "-" then
+    neg = -1
+    string = string:sub(2)
+  end
+
+  local ms = tonumber(string)
+  if ms then return ms end
+
+  local h, m, s, mi = string:match("(%d+):(%d+):(%d+),(%d+)")
+  if mi then
+    return subtitle.to_ms(h, m, s, mi) * neg
+  end
+  m, s, mi = string:match("(%d+):(%d+),(%d+)")
+  if mi then
+    return subtitle.to_ms(0, m, s, mi) * neg
+  end
+  s, mi = string:match("(%d+),(%d+)")
+  if mi then
+    return subtitle.to_ms(0, 0, s, mi) * neg
+  end
+
+  h, m, s = string:match("(%d+):(%d+):(%d+)")
+  if s then
+    return subtitle.to_ms(h, m, s, 0) * neg
+  end
+  m, s = string:match("(%d+):(%d+)")
+  if s then
+    return subtitle.to_ms(0, m, s, 0) * neg
+  end
+  return nil
+end
+
+
 return M
