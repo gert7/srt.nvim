@@ -308,9 +308,9 @@ vim.api.nvim_create_user_command("SrtFixTiming", function()
 
   if sub_i ~= #subs then
     if fix_timing(buf, lines, subs, sub_i, get_config()) then
-      print("Fixed timing for subtitle.")
+      print("Fixed timing for subtitle")
     else
-      print("Nothing to fix for subtitle.")
+      print("Nothing to fix for subtitle")
     end
   end
 end, { desc = "Fix timing for the current subtitle" })
@@ -332,9 +332,9 @@ vim.api.nvim_create_user_command("SrtFixTimingAll", function()
     end
   end
   if count > 0 then
-    print("Fixed timings for " .. count .. " subtitles.")
+    print("Fixed timings for " .. count .. " subtitles")
   else
-    print("No timings to fix.")
+    print("No timings to fix")
   end
 end, { desc = "Fix timing for all subtitles" })
 
@@ -346,6 +346,8 @@ local function parse_time(string)
   local mul = 1
   if string:sub(1, 1) == "-" then
     mul = -1
+    string = string:sub(2)
+  elseif string:sub(1, 1) == "+" then
     string = string:sub(2)
   end
 
@@ -504,5 +506,42 @@ vim.api.nvim_create_user_command("SrtImport", function(opts)
   subs, _ = get_subs.parse(lines)
   sub_sort(buf, lines, subs)
 end, { desc = "Import subtitles from another file after min_pause or optional offset", nargs = "+", complete = "file" })
+
+
+vim.api.nvim_create_user_command("SrtAdd", function(opts)
+  local config = get_config()
+  local buf = vim.api.nvim_get_current_buf()
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local subs, err = get_subs.parse(lines)
+  if err then
+    print("Error: " .. err[1] .. " on line " .. err[2])
+    return
+  end
+  local sub_i = find_subtitle(subs, line)
+
+  if not sub_i then
+    print("Not in a subtitle")
+    return
+  end
+
+  local sub = subs[sub_i]
+  local new_line = sub.line_pos + 1 + #sub.line_lengths
+  local new_start = sub.end_ms + config.min_pause
+  local new_end = new_start + config.min_duration
+
+  local new_header = {
+    "",
+    tostring(sub.index + 1),
+    make_dur_full_ms(new_start, new_end)
+  }
+
+  vim.api.nvim_buf_set_lines(buf, new_line, new_line, false, new_header)
+
+  lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  subs, _ = get_subs.parse(lines)
+  sub_sort(buf, lines, subs)
+  print("Subtitle added, subtitles sorted")
+end, { desc = "Add a subtitle after the current one with optional offset", nargs = "?" })
 
 return M
