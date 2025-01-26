@@ -1,3 +1,4 @@
+local vim = vim
 local get_subs = require("srtnvim.get_subs")
 local commands = require("srtnvim.commands")
 
@@ -23,7 +24,10 @@ local defaults = {
   -- "length" - allocate time based on the length of the resulting text
   split_mode = "length",
   split_with_min_pause = true,
-  fix_with_min_pause = true
+  -- whether fixing overlapping subtitles should add a minimum pause
+  fix_with_min_pause = true,
+  -- whether subtitles with a pause that is too short should also be fixed
+  fix_infringing_min_pause = true,
 }
 
 local config = vim.tbl_deep_extend("keep", defaults, {})
