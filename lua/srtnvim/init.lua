@@ -65,7 +65,7 @@ end, { desc = "Toggle Srtnvim on or off" })
 
 local augroup = vim.api.nvim_create_augroup("SrtauGroup", { clear = true })
 
-vim.api.nvim_create_autocmd({ "TextChanged", "BufEnter" }, {
+vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "BufEnter" }, {
   group = augroup,
   pattern = { "*.srt" },
   callback = function(ev)

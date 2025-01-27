@@ -18,7 +18,7 @@ local function fmt_s(ms)
   local neg = ""
   if ms < 0 then
     neg = "-"
-    ms = math.abs(ms)
+    ms = -ms
   end
   local timing_milli = ms % 1000
   local timing_secs = (ms - timing_milli) / 1000
@@ -166,7 +166,7 @@ function M.annotate_subs(buf, config, data, has_groups)
       if config.pause and pauseline > 0 then
         local opts = {
           id = pauseline,
-          virt_text = { { string.format(get_pause_line(pause, config, data.pause_lines), fmt_s(pause) .. " " .. cur_start .. " " .. last_end), "Srt" } },
+          virt_text = { { string.format(get_pause_line(pause, config, data.pause_lines), fmt_s(pause)), "Srt" } },
           virt_text_pos = 'eol'
         }
         vim.api.nvim_buf_set_extmark(buf, nsid, pauseline, 0, opts)
