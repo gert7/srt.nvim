@@ -75,10 +75,14 @@ end
 
 --- Fix all indices in a file
 local function fix_indices(lines, subs)
+  local changed = false
   for i, v in ipairs(subs) do
-    lines[v.line_pos] = tostring(i)
+    if v.index ~= i then
+      lines[v.line_pos] = tostring(i)
+      changed = true
+    end
   end
-  return lines
+  return lines, changed
 end
 
 
@@ -117,7 +121,6 @@ vim.api.nvim_create_user_command("SrtMerge", function(args)
     return
   end
   local sub_last = find_subtitle(subs, args.line2)
-  print("First subtitle is " .. sub_first .. " and last is " .. sub_last)
   for _ = sub_first, sub_last do
     lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     subs, err = get_subs.parse(lines)
@@ -215,21 +218,26 @@ end, {
 })
 
 
-local function fix_indices_buf(buf)
+function M.fix_indices_buf(buf)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
-    return
+    return false, "Error: " .. err[1] .. " on line " .. err[2]
   end
-  local new_lines = fix_indices(lines, subs)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines)
+  local new_lines, changed = fix_indices(lines, subs)
+  if changed then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines)
+  end
+  return true, nil
 end
 
 
 vim.api.nvim_create_user_command("SrtFixIndex", function()
   local buf = vim.api.nvim_get_current_buf()
-  fix_indices_buf(buf)
+  local _, err = M.fix_indices_buf(buf)
+  if err then
+    print(err)
+  end
 end, { desc = "Fix the indices of the subtitles" })
 
 
@@ -508,7 +516,7 @@ vim.api.nvim_create_user_command("SrtImport", function(opts)
 end, { desc = "Import subtitles from another file after min_pause or optional offset", nargs = "+", complete = "file" })
 
 
-vim.api.nvim_create_user_command("SrtAdd", function(opts)
+vim.api.nvim_create_user_command("SrtAdd", function()
   local config = get_config()
   local buf = vim.api.nvim_get_current_buf()
   local line = vim.api.nvim_win_get_cursor(0)[1]

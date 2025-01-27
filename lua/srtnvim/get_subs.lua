@@ -15,11 +15,16 @@ local function pad_left(s, c, n)
 end
 
 local function fmt_s(ms)
+  local neg = ""
+  if ms < 0 then
+    neg = "-"
+    ms = math.abs(ms)
+  end
   local timing_milli = ms % 1000
   local timing_secs = (ms - timing_milli) / 1000
 
   local tm_padded = pad_left(tostring(timing_milli), "0", 3)
-  return string.format("%d.%ss", timing_secs, tm_padded)
+  return string.format("%s%d.%ss", neg, timing_secs, tm_padded)
 end
 
 local matcher = "(%d%d):(%d%d):(%d%d),(%d%d%d)%s%-%->%s(%d%d):(%d%d):(%d%d),(%d%d%d)"
@@ -70,7 +75,9 @@ local function remove_tags(s)
   return s:gsub("<[^>]+>", "")
 end
 
-function M.annotate_subs(buf, lines, config, data, has_groups)
+function M.annotate_subs(buf, config, data, has_groups)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+
   local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 
   vim.api.nvim_buf_clear_namespace(buf, nsid, 0, -1)
@@ -159,7 +166,7 @@ function M.annotate_subs(buf, lines, config, data, has_groups)
       if config.pause and pauseline > 0 then
         local opts = {
           id = pauseline,
-          virt_text = { { string.format(get_pause_line(pause, config, data.pause_lines), fmt_s(pause)), "Srt" } },
+          virt_text = { { string.format(get_pause_line(pause, config, data.pause_lines), fmt_s(pause) .. " " .. cur_start .. " " .. last_end), "Srt" } },
           virt_text_pos = 'eol'
         }
         vim.api.nvim_buf_set_extmark(buf, nsid, pauseline, 0, opts)

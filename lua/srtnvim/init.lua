@@ -46,7 +46,7 @@ function M.setup(user_opts)
   commands.set_config(get_config)
 end
 
-vim.api.nvim_create_user_command("SrtToggle", function ()
+vim.api.nvim_create_user_command("SrtToggle", function()
   config.enabled = not config.enabled
   local in_srt_file = "Note: not currently editing a SubRip file."
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -65,12 +65,12 @@ end, { desc = "Toggle Srtnvim on or off" })
 
 local augroup = vim.api.nvim_create_augroup("SrtauGroup", { clear = true })
 
-vim.api.nvim_create_autocmd({ "InsertLeave", "TextChanged", "BufEnter" }, {
+vim.api.nvim_create_autocmd({ "TextChanged", "BufEnter" }, {
   group = augroup,
   pattern = { "*.srt" },
   callback = function(ev)
-    local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, vim.api.nvim_buf_line_count(ev.buf), false)
-    get_subs.annotate_subs(ev.buf, lines, config, data, false)
+    commands.fix_indices_buf(ev.buf)
+    get_subs.annotate_subs(ev.buf, config, data, false)
   end
 })
 
