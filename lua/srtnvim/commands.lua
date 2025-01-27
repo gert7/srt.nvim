@@ -120,7 +120,12 @@ vim.api.nvim_create_user_command("SrtMerge", function(args)
     print("Can't merge the last subtitle")
     return
   end
+
   local sub_last = find_subtitle(subs, args.line2)
+  if sub_last > sub_first then
+    sub_last = sub_last - 1
+  end
+
   for _ = sub_first, sub_last do
     lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     subs, err = get_subs.parse(lines)
