@@ -52,8 +52,7 @@ vim.api.nvim_create_user_command("SrtToggle", function()
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_get_option(buf, "filetype") == "srt" then
       in_srt_file = ""
-      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-      get_subs.annotate_subs(buf, lines, config, data)
+      get_subs.annotate_subs(buf, config, data)
     end
   end
   if config.enabled then
