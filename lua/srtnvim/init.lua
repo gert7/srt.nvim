@@ -28,6 +28,7 @@ local defaults = {
   fix_with_min_pause = true,
   -- whether subtitles with a pause that is too short should also be fixed
   fix_infringing_min_pause = true,
+  shift_ms = 100,
 }
 
 local config = vim.tbl_deep_extend("keep", defaults, {})

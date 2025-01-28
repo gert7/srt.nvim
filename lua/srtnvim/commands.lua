@@ -12,6 +12,10 @@ function M.set_config(cfg)
   get_config = cfg
 end
 
+local function print_err(err)
+  print("Error: " .. err[1] .. " on line " .. err[2])
+end
+
 local function sum_table(t, s, f)
   local sum = 0
   for i = s, f do
@@ -96,9 +100,7 @@ local function sub_merge(buf, subs, sub_i)
   local del_from = next.line_pos - 2
   vim.api.nvim_buf_set_lines(buf, del_from, del_from + 3, false, {})
 
-  local f_h, f_m, f_s, f_mi = subtitle.from_ms(sub.start_ms)
-  local t_h, t_m, t_s, t_mi = subtitle.from_ms(next.end_ms)
-  local dur_line = make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
+  local dur_line = make_dur_full_ms(sub.start_ms, next.end_ms)
   vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false, { dur_line })
 end
 
@@ -108,7 +110,7 @@ vim.api.nvim_create_user_command("SrtMerge", function(args)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
   local sub_first = find_subtitle(subs, args.line1)
@@ -152,7 +154,7 @@ vim.api.nvim_create_user_command("SrtSplit", function(opts)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
   local sub_i = find_subtitle(subs, line)
@@ -197,20 +199,20 @@ vim.api.nvim_create_user_command("SrtSplit", function(opts)
     split_ms = sub.start_ms + sub.length_ms / 2
   end
 
-  local fe_h, fe_m, fe_s, fe_mi = subtitle.from_ms(split_ms - mp)
-  local ss_h, ss_m, ss_s, ss_mi = subtitle.from_ms(split_ms + mp)
+  local first_end = make_dur_ms(split_ms - mp)
+  local last_start = make_dur_ms(split_ms + mp)
   local new_index = tostring(sub.index + 1)
 
   local first_start = lines[sub.line_pos + 1]:sub(1, 17)
   local last_end = lines[sub.line_pos + 1]:sub(13, 29)
 
   vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false,
-    { first_start .. make_dur(fe_h, fe_m, fe_s, fe_mi) })
+    { first_start .. first_end })
 
   local new_header = {
     "",
     new_index,
-    make_dur(ss_h, ss_m, ss_s, ss_mi) .. last_end
+    last_start .. last_end
   }
 
   vim.api.nvim_buf_set_lines(buf, split_point, split_point, false, new_header)
@@ -227,7 +229,7 @@ function M.fix_indices_buf(buf)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    return false, "Error: " .. err[1] .. " on line " .. err[2]
+    return false, err
   end
   local new_lines, changed = fix_indices(lines, subs)
   if changed then
@@ -241,7 +243,7 @@ vim.api.nvim_create_user_command("SrtFixIndex", function()
   local buf = vim.api.nvim_get_current_buf()
   local _, err = M.fix_indices_buf(buf)
   if err then
-    print(err)
+    print_err(err)
   end
 end, { desc = "Fix the indices of the subtitles" })
 
@@ -272,7 +274,7 @@ vim.api.nvim_create_user_command("SrtSort", function()
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
 
@@ -295,11 +297,11 @@ local function fix_timing(buf, lines, subs, i, config)
 
     if new_end - sub.start_ms >= config.min_duration then
       local first_start = lines[sub.line_pos + 1]:sub(1, 17)
-      local fe_h, fe_m, fe_s, fe_mi = subtitle.from_ms(new_end)
+      -- local fe_h, fe_m, fe_s, fe_mi = subtitle.from_ms(new_end)
       vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false,
-        { first_start .. make_dur(fe_h, fe_m, fe_s, fe_mi) })
+        { first_start .. make_dur_ms(new_end) })
     else
-      print("Can't shrink this subtitle, would break min_duration")
+      print("Can't shrink subtitle " .. sub.index .. ", would break min_duration")
     end
     return true
   else
@@ -314,7 +316,7 @@ vim.api.nvim_create_user_command("SrtFixTiming", function()
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
   local sub_i = find_subtitle(subs, line)
@@ -334,7 +336,7 @@ vim.api.nvim_create_user_command("SrtFixTimingAll", function()
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
 
@@ -398,7 +400,7 @@ vim.api.nvim_create_user_command("SrtShift", function(opts)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
   local sub_i = find_subtitle(subs, line)
@@ -439,7 +441,7 @@ vim.api.nvim_create_user_command("SrtShiftAll", function(opts)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
 
@@ -478,7 +480,7 @@ vim.api.nvim_create_user_command("SrtImport", function(opts)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
   local sub_i = find_subtitle(subs, line)
@@ -503,7 +505,7 @@ vim.api.nvim_create_user_command("SrtImport", function(opts)
   local new_lines = vim.fn.readfile(file)
   local new_subs, err_new = get_subs.parse(new_lines)
   if err_new then
-    print("Error: " .. err_new[1] .. " on line " .. err_new[2])
+    print_err(err_new)
     return
   end
 
@@ -528,7 +530,7 @@ vim.api.nvim_create_user_command("SrtAdd", function()
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print("Error: " .. err[1] .. " on line " .. err[2])
+    print_err(err)
     return
   end
   local sub_i = find_subtitle(subs, line)
@@ -556,5 +558,65 @@ vim.api.nvim_create_user_command("SrtAdd", function()
   sub_sort(buf, lines, subs)
   print("Subtitle added, subtitles sorted")
 end, { desc = "Add a subtitle after the current one with optional offset", nargs = "?" })
+
+vim.api.nvim_create_user_command("SrtShiftTime", function (opts)
+  local config = get_config()
+  local buf = vim.api.nvim_get_current_buf()
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  local col = vim.api.nvim_win_get_cursor(0)[2]
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local subs, err = get_subs.parse(lines)
+  if err then
+    print_err(err)
+    return
+  end
+  local sub_i = find_subtitle(subs, line)
+
+  if not sub_i then
+    print("Not in a subtitle")
+    return
+  end
+
+  local sub = subs[sub_i]
+  if line ~= sub.line_pos + 1 then
+    print("Not on duration line")
+    return
+  end
+
+  local offset = config.shift_ms
+
+  if opts.args ~= "" then
+    offset = parse_time(opts.args)
+    if not offset then
+      print("Invalid time format")
+      return
+    end
+  end
+
+  if col >= 0 and col <= 12 then
+    local new_ms = sub.start_ms + offset
+    if new_ms < 0 then
+      print("Start time cannot be negative")
+      return
+    end
+
+    local last_end = lines[sub.line_pos + 1]:sub(13, 29)
+
+    local new_start = make_dur_ms(new_ms)
+    vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false, { new_start .. last_end })
+  elseif col >= 16 and col <= 28 then
+    local new_ms = sub.start_ms + offset
+    if new_ms < 0 then
+      print("End time cannot be negative")
+      return
+    end
+    local first_start = lines[sub.line_pos + 1]:sub(1, 17)
+
+    local new_end = make_dur_ms(new_ms)
+    vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false, { first_start .. new_end })
+  else
+    print("Hover over start or end time to shift")
+  end
+end, { desc = "Shift either the start or end time of a subtitle.", nargs = "?" })
 
 return M
