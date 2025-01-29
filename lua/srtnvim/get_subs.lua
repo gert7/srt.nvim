@@ -96,7 +96,7 @@ function M.annotate_subs(buf, config, data, has_groups)
 
   local line_count = 0
   local last_timing = 0
-  local total_length = 1
+  local total_length = 0
   local last_timing_k = 0
   local extra_spaces = string.rep(" ", config.extra_spaces)
   local last_index = 0
@@ -219,7 +219,7 @@ function M.annotate_subs(buf, config, data, has_groups)
 
         state = State.index
         line_count = 0
-        total_length = 1
+        total_length = 0
       else
         local clean_s = remove_tags(v)
         total_length = total_length + clean_s:len()

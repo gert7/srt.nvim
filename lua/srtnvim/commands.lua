@@ -16,7 +16,7 @@ local function print_err(err)
   print("Error: " .. err[1] .. " on line " .. err[2])
 end
 
-local function sum_table(t, s, f)
+local function sum_array(t, s, f)
   local sum = 0
   for i = s, f do
     sum = sum + t[i]
@@ -141,7 +141,8 @@ end, { desc = "Merge the subtitle down", range = true })
 
 
 vim.api.nvim_create_user_command("SrtSplit", function(opts)
-  local split_mode = get_config().split_mode
+  local config = get_config()
+  local split_mode = config.split_mode
   if opts.args ~= "" then
     split_mode = opts.args
   end
@@ -184,15 +185,15 @@ vim.api.nvim_create_user_command("SrtSplit", function(opts)
   local split_point = sub.line_pos + 1 + line_count / 2
 
   local mp = 0
-  if get_config().split_with_min_pause then
-    mp = get_config().min_pause
+  if config.split_with_min_pause then
+    mp = config.min_pause
   end
 
   local split_ms = 0
 
   if split_mode == "length" then
-    local length_first = sum_table(sub.line_lengths, 1, line_count / 2)
-    local length_second = sum_table(sub.line_lengths, line_count / 2 + 1, line_count)
+    local length_first = sum_array(sub.line_lengths, 1, line_count / 2)
+    local length_second = sum_array(sub.line_lengths, line_count / 2 + 1, line_count)
     local p = length_first / (length_first + length_second)
     split_ms = sub.start_ms + sub.length_ms * p
   else -- split_mode == "half"
@@ -286,7 +287,7 @@ local function fix_timing(buf, lines, subs, i, config)
   local sub = subs[i]
   local next = subs[i + 1]
   if sub.start_ms > sub.end_ms then
-    print("Subtitle " .. sub.index .. " has a negative duration")
+    return false, "Subtitle " .. sub.index .. " has a negative duration"
   elseif sub.end_ms > next.start_ms or
       (config.fix_infringing_min_pause and sub.end_ms > next.start_ms - config.min_pause) then
     local mp = 0
@@ -301,11 +302,11 @@ local function fix_timing(buf, lines, subs, i, config)
       vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false,
         { first_start .. make_dur_ms(new_end) })
     else
-      print("Can't shrink subtitle " .. sub.index .. ", would break min_duration")
+      return false, "Can't shrink subtitle " .. sub.index .. ", would break min_duration"
     end
-    return true
+    return true, nil
   else
-    return false
+    return false, nil
   end
 end
 
@@ -322,10 +323,13 @@ vim.api.nvim_create_user_command("SrtFixTiming", function()
   local sub_i = find_subtitle(subs, line)
 
   if sub_i ~= #subs then
-    if fix_timing(buf, lines, subs, sub_i, get_config()) then
-      print("Fixed timing for subtitle")
+    local fix, error = fix_timing(buf, lines, subs, sub_i, get_config())
+    if fix then
+      print("Fixed timing for subtitle " .. sub_i)
+    elseif error then
+      print(error)
     else
-      print("Nothing to fix for subtitle")
+      print("Nothing to fix for subtitle " .. sub_i)
     end
   end
 end, { desc = "Fix timing for the current subtitle" })
@@ -342,8 +346,11 @@ vim.api.nvim_create_user_command("SrtFixTimingAll", function()
 
   local count = 0
   for i = 1, #subs - 1 do
-    if fix_timing(buf, lines, subs, i, get_config()) then
+    local fix, error = fix_timing(buf, lines, subs, i, get_config())
+    if fix then
       count = count + 1
+    elseif error then
+      print(error)
     end
   end
   if count > 0 then
@@ -523,7 +530,7 @@ vim.api.nvim_create_user_command("SrtImport", function(opts)
 end, { desc = "Import subtitles from another file after min_pause or optional offset", nargs = "+", complete = "file" })
 
 
-vim.api.nvim_create_user_command("SrtAdd", function()
+vim.api.nvim_create_user_command("SrtAdd", function(opts)
   local config = get_config()
   local buf = vim.api.nvim_get_current_buf()
   local line = vim.api.nvim_win_get_cursor(0)[1]
@@ -540,9 +547,19 @@ vim.api.nvim_create_user_command("SrtAdd", function()
     return
   end
 
+  local offset = config.min_pause
+
+  if opts.args ~= "" then
+    offset = parse_time(opts.args)
+    if not offset then
+      print("Invalid time format")
+      return
+    end
+  end
+
   local sub = subs[sub_i]
   local new_line = sub.line_pos + 1 + #sub.line_lengths
-  local new_start = sub.end_ms + config.min_pause
+  local new_start = sub.end_ms + offset
   local new_end = new_start + config.min_duration
 
   local new_header = {

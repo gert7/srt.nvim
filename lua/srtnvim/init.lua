@@ -1,6 +1,7 @@
 local vim = vim
 local get_subs = require("srtnvim.get_subs")
 local commands = require("srtnvim.commands")
+require("srtnvim.video")
 
 local M = {}
 
