@@ -12,7 +12,6 @@ function M.set_config(cfg)
   get_config = cfg
 end
 
-
 local function sum_array(t, s, f)
   local sum = 0
   for i = s, f do
@@ -32,7 +31,8 @@ local function make_dur_ms(ms)
 end
 
 local function make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
-  return string.format("%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d", f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
+  return string.format("%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d",
+    f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
 end
 
 local function make_dur_full_ms(f_ms, t_ms)
@@ -236,7 +236,6 @@ function M.fix_indices_buf(buf)
   return true, nil
 end
 
-
 define_command("SrtFixIndex", function(args, data)
   local _, err = M.fix_indices_buf(data.buf)
   if err then
@@ -422,7 +421,12 @@ define_command("SrtShift", function(args, data)
     return
   end
 
-  vim.api.nvim_buf_set_lines(data.buf, sub.line_pos, sub.line_pos + 1, false, { make_dur_full_ms(new_start, new_end) })
+  vim.api.nvim_buf_set_lines(
+    data.buf,
+    sub.line_pos,
+    sub.line_pos + 1,
+    false,
+    { make_dur_full_ms(new_start, new_end) })
 
   data.lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
   subs, _ = get_subs.parse(data.lines)
@@ -508,7 +512,11 @@ define_command("SrtImport", function(args, data)
   data.lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
   subs, _ = get_subs.parse(data.lines)
   sub_sort(data.buf, data.lines, subs)
-end, { desc = "Import subtitles from another file after min_pause or optional offset", nargs = "+", complete = "file" })
+end, {
+  desc = "Import subtitles from another file after min_pause or optional offset",
+  nargs = "+",
+  complete = "file"
+})
 
 
 define_command("SrtAdd", function(args, data)
@@ -554,7 +562,7 @@ define_command("SrtAdd", function(args, data)
 end, { desc = "Add a subtitle after the current one with optional offset", nargs = "?" })
 
 
-define_command("SrtShiftTime", function (args, data)
+define_command("SrtShiftTime", function(args, data)
   local subs, err = get_subs.parse(data.lines)
   if err or not subs then
     get_subs.print_err(err)
@@ -593,7 +601,13 @@ define_command("SrtShiftTime", function (args, data)
     local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
 
     local new_start = make_dur_ms(new_ms)
-    vim.api.nvim_buf_set_lines(data.buf, sub.line_pos, sub.line_pos + 1, false, { new_start .. last_end })
+    vim.api.nvim_buf_set_lines(
+      data.buf,
+      sub.line_pos,
+      sub.line_pos + 1,
+      false,
+      { new_start .. last_end }
+    )
   elseif data.col >= 16 and data.col <= 28 then
     local new_ms = sub.start_ms + offset
     if new_ms < 0 then
@@ -603,7 +617,13 @@ define_command("SrtShiftTime", function (args, data)
     local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
 
     local new_end = make_dur_ms(new_ms)
-    vim.api.nvim_buf_set_lines(data.buf, sub.line_pos, sub.line_pos + 1, false, { first_start .. new_end })
+    vim.api.nvim_buf_set_lines(
+      data.buf,
+      sub.line_pos,
+      sub.line_pos + 1,
+      false,
+      { first_start .. new_end }
+    )
   else
     print("Hover over start or end time to shift")
   end
