@@ -12,9 +12,6 @@ function M.set_config(cfg)
   get_config = cfg
 end
 
-local function print_err(err)
-  print("Error: " .. err[1] .. " on line " .. err[2])
-end
 
 local function sum_array(t, s, f)
   local sum = 0
@@ -24,23 +21,6 @@ local function sum_array(t, s, f)
   return sum
 end
 
-local function find_subtitle(subs, line)
-  local low = 1
-  local high = #subs
-  while low <= high do
-    local mid = math.floor((low + high) / 2)
-    local sub = subs[mid]
-    local start = sub.line_pos
-    local finish = start + 2 + #sub.line_lengths
-    if line < start then
-      high = mid - 1
-    elseif line > finish then
-      low = mid + 1
-    else
-      return mid
-    end
-  end
-end
 
 local function make_dur(h, m, s, mi)
   return string.format("%02d:%02d:%02d,%03d", h, m, s, mi)
@@ -110,10 +90,10 @@ vim.api.nvim_create_user_command("SrtMerge", function(args)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print_err(err)
+    get_subs.print_err(err)
     return
   end
-  local sub_first = find_subtitle(subs, args.line1)
+  local sub_first = get_subs.find_subtitle(subs, args.line1)
   if not sub_first then
     print("Not in a subtitle")
     return
@@ -123,7 +103,7 @@ vim.api.nvim_create_user_command("SrtMerge", function(args)
     return
   end
 
-  local sub_last = find_subtitle(subs, args.line2)
+  local sub_last = get_subs.find_subtitle(subs, args.line2)
   if sub_last > sub_first then
     sub_last = sub_last - 1
   end
@@ -154,11 +134,11 @@ vim.api.nvim_create_user_command("SrtSplit", function(opts)
   local line = vim.api.nvim_win_get_cursor(0)[1]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
-  if err then
-    print_err(err)
+  if err or not subs then
+    get_subs.print_err(err)
     return
   end
-  local sub_i = find_subtitle(subs, line)
+  local sub_i = get_subs.find_subtitle(subs, line)
 
   if not sub_i then
     print("Not in a subtitle")
@@ -244,7 +224,7 @@ vim.api.nvim_create_user_command("SrtFixIndex", function()
   local buf = vim.api.nvim_get_current_buf()
   local _, err = M.fix_indices_buf(buf)
   if err then
-    print_err(err)
+    get_subs.print_err(err)
   end
 end, { desc = "Fix the indices of the subtitles" })
 
@@ -275,7 +255,7 @@ vim.api.nvim_create_user_command("SrtSort", function()
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print_err(err)
+    get_subs.print_err(err)
     return
   end
 
@@ -317,10 +297,10 @@ vim.api.nvim_create_user_command("SrtFixTiming", function()
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print_err(err)
+    get_subs.print_err(err)
     return
   end
-  local sub_i = find_subtitle(subs, line)
+  local sub_i = get_subs.find_subtitle(subs, line)
 
   if sub_i ~= #subs then
     local fix, error = fix_timing(buf, lines, subs, sub_i, get_config())
@@ -340,7 +320,7 @@ vim.api.nvim_create_user_command("SrtFixTimingAll", function()
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
-    print_err(err)
+    get_subs.print_err(err)
     return
   end
 
@@ -406,11 +386,11 @@ vim.api.nvim_create_user_command("SrtShift", function(opts)
   local line = vim.api.nvim_win_get_cursor(0)[1]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
-  if err then
-    print_err(err)
+  if err or not subs then
+    get_subs.print_err(err)
     return
   end
-  local sub_i = find_subtitle(subs, line)
+  local sub_i = get_subs.find_subtitle(subs, line)
 
   if not sub_i then
     print("Not in a subtitle")
@@ -447,8 +427,8 @@ vim.api.nvim_create_user_command("SrtShiftAll", function(opts)
   local buf = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
-  if err then
-    print_err(err)
+  if err or not subs then
+    get_subs.print_err(err)
     return
   end
 
@@ -486,11 +466,11 @@ vim.api.nvim_create_user_command("SrtImport", function(opts)
   local line = vim.api.nvim_win_get_cursor(0)[1]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
-  if err then
-    print_err(err)
+  if err or not subs then
+    get_subs.print_err(err)
     return
   end
-  local sub_i = find_subtitle(subs, line)
+  local sub_i = get_subs.find_subtitle(subs, line)
 
   if not sub_i then
     print("Not in a subtitle")
@@ -511,8 +491,8 @@ vim.api.nvim_create_user_command("SrtImport", function(opts)
 
   local new_lines = vim.fn.readfile(file)
   local new_subs, err_new = get_subs.parse(new_lines)
-  if err_new then
-    print_err(err_new)
+  if err_new or not new_subs then
+    get_subs.print_err(err_new)
     return
   end
 
@@ -536,11 +516,11 @@ vim.api.nvim_create_user_command("SrtAdd", function(opts)
   local line = vim.api.nvim_win_get_cursor(0)[1]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
-  if err then
-    print_err(err)
+  if err or not subs then
+    get_subs.print_err(err)
     return
   end
-  local sub_i = find_subtitle(subs, line)
+  local sub_i = get_subs.find_subtitle(subs, line)
 
   if not sub_i then
     print("Not in a subtitle")
@@ -583,11 +563,11 @@ vim.api.nvim_create_user_command("SrtShiftTime", function (opts)
   local col = vim.api.nvim_win_get_cursor(0)[2]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
-  if err then
-    print_err(err)
+  if err or not subs then
+    get_subs.print_err(err)
     return
   end
-  local sub_i = find_subtitle(subs, line)
+  local sub_i = get_subs.find_subtitle(subs, line)
 
   if not sub_i then
     print("Not in a subtitle")

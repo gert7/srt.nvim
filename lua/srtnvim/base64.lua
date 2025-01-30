@@ -10,6 +10,7 @@
 
  author: Ilya Kolbin (iskolbin@gmail.com)
  url: github.com/iskolbin/lbase64
+ modified for srt.nvim
 
  COMPATIBILITY
 
@@ -77,7 +78,11 @@ local DEFAULT_DECODER = base64.makedecoder()
 
 local char, concat = string.char, table.concat
 
+local memo = {}
+
 function base64.encode( str, encoder, usecaching )
+	if memo[str] then return memo[str] end
+
 	encoder = encoder or DEFAULT_ENCODER
 	local t, k, n = {}, 1, #str
 	local lastn = n % 3
@@ -106,7 +111,9 @@ function base64.encode( str, encoder, usecaching )
 		local v = str:byte( n )*0x10000
 		t[k] = char(encoder[extract(v,18,6)], encoder[extract(v,12,6)], encoder[64], encoder[64])
 	end
-	return concat( t )
+	local result = concat( t )
+	memo[str] = result
+	return result
 end
 
 function base64.decode( b64, decoder, usecaching )

@@ -291,4 +291,26 @@ function M.parse(lines)
   return subtitles, nil
 end
 
+function M.print_err(err)
+  print("Error: " .. err[1] .. " on line " .. err[2])
+end
+
+function M.find_subtitle(subs, line)
+  local low = 1
+  local high = #subs
+  while low <= high do
+    local mid = math.floor((low + high) / 2)
+    local sub = subs[mid]
+    local start = sub.line_pos
+    local finish = start + 2 + #sub.line_lengths
+    if line < start then
+      high = mid - 1
+    elseif line > finish then
+      low = mid + 1
+    else
+      return mid
+    end
+  end
+end
+
 return M
