@@ -1,16 +1,9 @@
 local vim = vim
+local config = require("srtnvim.config")
 local get_subs = require("srtnvim.get_subs")
 local subtitle = require("srtnvim.subtitle")
 
 local M = {}
-
-local get_config = function()
-  return {}
-end
-
-function M.set_config(cfg)
-  get_config = cfg
-end
 
 local function sum_array(t, s, f)
   local sum = 0
@@ -88,7 +81,7 @@ end
 local function get_data()
   local buf = vim.api.nvim_get_current_buf()
   return {
-    config = get_config(),
+    config = config.get_config(),
     buf = buf,
     line = vim.api.nvim_win_get_cursor(0)[1],
     col = vim.api.nvim_win_get_cursor(0)[2],
@@ -313,7 +306,7 @@ define_command("SrtFixTiming", function(args, data)
   local sub_i = get_subs.find_subtitle(subs, data.line)
 
   if sub_i ~= #subs then
-    local fix, error = fix_timing(data.buf, data.lines, subs, sub_i, get_config())
+    local fix, error = fix_timing(data.buf, data.lines, subs, sub_i, data.config)
     if fix then
       print("Fixed timing for subtitle " .. sub_i)
     elseif error then
@@ -334,7 +327,7 @@ define_command("SrtFixTimingAll", function(args, data)
 
   local count = 0
   for i = 1, #subs - 1 do
-    local fix, error = fix_timing(data.buf, data.lines, subs, i, get_config())
+    local fix, error = fix_timing(data.buf, data.lines, subs, i, data.config)
     if fix then
       count = count + 1
     elseif error then
@@ -396,14 +389,17 @@ define_command("SrtShift", function(args, data)
     get_subs.print_err(err)
     return
   end
-  local sub_i = get_subs.find_subtitle(subs, data.line)
+  local sub_first = get_subs.find_subtitle(subs, args.line1)
 
-  if not sub_i then
+  if not sub_first then
     print("Not in a subtitle")
     return
   end
 
-  local sub = subs[sub_i]
+  local sub_last = sub_first
+  if args.line1 ~= args.line2 then
+    sub_last = get_subs.find_subtitle(subs, args.line2)
+  end
 
   local shift = parse_time(args.args)
   if not shift then
@@ -411,27 +407,30 @@ define_command("SrtShift", function(args, data)
     return
   end
 
-  local new_start = sub.start_ms + shift
-  local new_end = sub.end_ms + shift
+  -- TODO: Optimize this
+  for i = sub_first, sub_last do
+    local sub = subs[i]
+    local new_start = sub.start_ms + shift
+    local new_end = sub.end_ms + shift
 
-  if new_start < 0 or new_end < 0 then
-    local over = 0 - new_start
-    local over_fmt = make_dur_ms(over)
-    print("Can't shift subtitle before 0. Over by " .. over_fmt)
-    return
+    if new_start < 0 or new_end < 0 then
+      local over = 0 - new_start
+      local over_fmt = make_dur_ms(over)
+      print("Can't shift subtitle before 0. Over by " .. over_fmt)
+      return
+    end
+
+    vim.api.nvim_buf_set_lines(
+      data.buf,
+      sub.line_pos,
+      sub.line_pos + 1,
+      false,
+      { make_dur_full_ms(new_start, new_end) })
   end
-
-  vim.api.nvim_buf_set_lines(
-    data.buf,
-    sub.line_pos,
-    sub.line_pos + 1,
-    false,
-    { make_dur_full_ms(new_start, new_end) })
-
-  data.lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(data.lines)
-  sub_sort(data.buf, data.lines, subs)
-end, { desc = "Shift the current subtitle", nargs = 1 })
+  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+  subs, _ = get_subs.parse(lines)
+  sub_sort(data.buf, lines, subs)
+end, { desc = "Shift the current subtitle", nargs = 1, range = true })
 
 
 define_command("SrtShiftAll", function(args, data)
@@ -463,9 +462,9 @@ define_command("SrtShiftAll", function(args, data)
 
   vim.api.nvim_buf_set_lines(data.buf, 0, -1, false, data.lines)
 
-  data.lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(data.lines)
-  sub_sort(data.buf, data.lines, subs)
+  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+  subs, _ = get_subs.parse(lines)
+  sub_sort(data.buf, lines, subs)
 end, { desc = "Shift all subtitles", nargs = 1 })
 
 
@@ -509,9 +508,9 @@ define_command("SrtImport", function(args, data)
 
   vim.api.nvim_buf_set_lines(data.buf, -1, -1, false, new_lines)
 
-  data.lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(data.lines)
-  sub_sort(data.buf, data.lines, subs)
+  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+  subs, _ = get_subs.parse(lines)
+  sub_sort(data.buf, lines, subs)
 end, {
   desc = "Import subtitles from another file after min_pause or optional offset",
   nargs = "+",
@@ -555,9 +554,9 @@ define_command("SrtAdd", function(args, data)
 
   vim.api.nvim_buf_set_lines(data.buf, new_line, new_line, false, new_header)
 
-  data.lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(data.lines)
-  sub_sort(data.buf, data.lines, subs)
+  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+  subs, _ = get_subs.parse(lines)
+  sub_sort(data.buf, lines, subs)
   print("Subtitle added, subtitles sorted")
 end, { desc = "Add a subtitle after the current one with optional offset", nargs = "?" })
 

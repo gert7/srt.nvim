@@ -1,4 +1,5 @@
 local vim = vim
+local shared_config = require("srtnvim.config")
 local get_subs = require("srtnvim.get_subs")
 local commands = require("srtnvim.commands")
 require("srtnvim.video")
@@ -45,7 +46,9 @@ function M.setup(user_opts)
   data = {
     pause_lines = get_subs.preproduce_pause_lines(config)
   }
-  commands.set_config(get_config)
+  shared_config.set_config(get_config)
+  -- commands.set_config(get_config)
+  -- video.set_config(get_config)
 end
 
 vim.api.nvim_create_user_command("SrtToggle", function()

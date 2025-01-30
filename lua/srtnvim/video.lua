@@ -2,29 +2,32 @@ local vim = vim
 local uv = vim.uv
 local base64 = require("srtnvim.base64")
 local get_subs = require("srtnvim.get_subs")
+local config = require("srtnvim.config")
+
+local M = {}
 
 local function subtitle_track(xml)
   local pattern = "<category%sname='Stream%s(%d+)'>"
-  
+
   local iter = string.gmatch(xml, pattern)
-  
+
   local max = nil
-  
+
   for d in iter do
     local track = tonumber(d)
     if not max or track > max then
       max = track
     end
   end
-  
+
   return max
 end
 
 local function is_playing(xml)
   local pattern = "<state>(%a+)</state>"
-  
+
   local state = string.gmatch(xml, pattern)()
-  
+
   return state == "playing"
 end
 
@@ -52,13 +55,13 @@ local function get_status_full(ip, port, password, req, callback)
       print("Error connecting to VLC: " .. err)
       return
     end
-    
+
     local command = ""
-    
+
     if req then
       command = "?command=" .. req
     end
-    
+
     local auth = base64.encode(":" .. password)
     local req = "GET /requests/status.xml" .. command .. " HTTP/1.1\n"
     -- print(req)
@@ -105,7 +108,7 @@ vim.api.nvim_create_user_command("SrtConnect", function(opts)
   local args = vim.split(opts.args, " ")
   local ip = "127.0.0.1"
   local port = 8080
-  
+
   local password = args[1]
   if #args >= 2 then
     ip = args[2]
@@ -113,12 +116,12 @@ vim.api.nvim_create_user_command("SrtConnect", function(opts)
   if #args >= 3 then
     port = args[3]
   end
-  
+
   vim.cmd("write! /tmp/srtnvim.srt")
-  
+
   get_status_full(ip, port, password, "addsubtitle&val=/tmp/srtnvim.srt", function(result)
     print("Subtitle added")
-    
+
     set_buf_credentials(ip, port, password)
     local track = subtitle_track(result)
     print(track)
@@ -130,7 +133,7 @@ end, { desc = "Connect to VLC", nargs = "+" })
 
 local function upload_subtitle(credentials)
   vim.cmd("write! /tmp/srtnvim.srt")
-  
+
   get_status(
   credentials,
   "addsubtitle&val=/tmp/srtnvim.srt",
@@ -144,17 +147,37 @@ local function upload_subtitle(credentials)
   end)
 end
 
-vim.api.nvim_create_user_command("SrtVideoPause", function()
-  local credentials = get_buf_credentials()
-  if not credentials then
-    print("Not connected to a video")
-    return
+
+local function get_data()
+  local buf = vim.api.nvim_get_current_buf()
+  return {
+    config = config.get_config(),
+    buf = buf,
+    line = vim.api.nvim_win_get_cursor(0)[1],
+    col = vim.api.nvim_win_get_cursor(0)[2],
+    lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false),
+    credentials = get_buf_credentials()
+  }
+end
+
+local function define_video_command(name, func, options)
+  local command = function(args)
+    local data = get_data()
+
+    if not data.credentials then
+      print("Not connected to a video")
+      return
+    end
+    func(args, data)
   end
-  
-  get_status(credentials, nil, function(xml)
+  vim.api.nvim_create_user_command(name, command, options)
+end
+
+define_video_command("SrtVideoPause", function(args, data)
+  get_status(data.credentials, nil, function(xml)
     local playing = is_playing(xml)
     if playing then
-      get_status(credentials, "pl_pause", function()
+      get_status(data.credentials, "pl_pause", function()
         print("Video paused")
       end)
     else
@@ -163,17 +186,11 @@ vim.api.nvim_create_user_command("SrtVideoPause", function()
   end)
 end, { desc = "Pause the video" })
 
-vim.api.nvim_create_user_command("SrtVideoPlay", function()
-  local credentials = get_buf_credentials()
-  if not credentials then
-    print("Not connected to a video")
-    return
-  end
-  
-  get_status(credentials, nil, function(xml)
+define_video_command("SrtVideoPlay", function(args, data)
+  get_status(data.credentials, nil, function(xml)
     local playing = is_playing(xml)
     if not playing then
-      get_status(credentials, "pl_pause", function()
+      get_status(data.credentials, "pl_pause", function()
         print("Video playing")
       end)
     else
@@ -188,7 +205,7 @@ vim.api.nvim_create_user_command("SrtVideoPlayToggle", function()
     print("Not connected to a video")
     return
   end
-  
+
   get_status(credentials, nil, function(xml)
     local playing = is_playing(xml)
     get_status(credentials, "pl_pause", function()
@@ -201,27 +218,24 @@ vim.api.nvim_create_user_command("SrtVideoPlayToggle", function()
   end)
 end, { desc = "Play the video" })
 
-vim.api.nvim_create_user_command("SrtVideoJump", function()
-  local credentials = get_buf_credentials()
-  if not credentials then
-    print("Not connected to a video")
-    return
-  end
-  
-  local buf = vim.api.nvim_get_current_buf()
-  local line = vim.api.nvim_win_get_cursor(0)[1]
-  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  local subs, err = get_subs.parse(lines)
+define_video_command("SrtVideoJump", function(args, data)
+  local subs, err = get_subs.parse(data.lines)
   if err or not subs then
     get_subs.print_err(err)
     return
   end
-  local sub_i = get_subs.find_subtitle(subs, line)
+  local sub_i = get_subs.find_subtitle(subs, data.line)
   local sub = subs[sub_i]
-  
+
   local seconds = math.floor(sub.start_ms / 1000)
-  
-  get_status(credentials, "seek&val=" .. seconds, function()
+
+  get_status(data.credentials, "seek&val=" .. seconds, function()
     print("Jumped to " .. seconds .. " seconds")
   end)
-end, { desc = "Jump to a specific time in the video" })
+end, { desc = "Seek the video to the subtitle under the cursor (affects video)" })
+
+define_video_command("SrtVideoTrack", function()
+  print("Video track!")
+end, { desc = "Follow the current subtitle in the buffer (affects text editor)" })
+
+return M
