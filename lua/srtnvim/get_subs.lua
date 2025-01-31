@@ -175,7 +175,7 @@ function M.annotate_subs(buf, config, data, has_groups)
         }
         vim.api.nvim_buf_set_extmark(buf, nsid, pauseline, 0, opts)
 
-        if pause < 0 then
+        if config.overlap_warning and pause < 0 then
           table.insert(diagnostics, {
             lnum = pauseline,
             col = 0,
@@ -313,6 +313,26 @@ function M.find_subtitle(subs, line)
       low = mid + 1
     else
       return mid
+    end
+  end
+end
+
+function M.find_subtitle_by_ms(subs, ms)
+  local low = 1
+  local high = #subs
+  while low <= high do
+    local mid = math.floor((low + high) / 2)
+    local sub = subs[mid]
+    if sub.start_ms == ms then
+      return mid
+    end
+    if sub.start_ms < ms then
+      if mid == #subs or subs[mid + 1].start_ms > ms then
+        return mid
+      end
+      low = mid + 1
+    else
+      high = mid - 1
     end
   end
 end

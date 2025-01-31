@@ -25,10 +25,19 @@ end
 
 local function is_playing(xml)
   local pattern = "<state>(%a+)</state>"
-
   local state = string.gmatch(xml, pattern)()
-
   return state == "playing"
+end
+
+local function get_position(xml)
+  -- position is a really long float from 0 to 1
+  local pattern = "<position>(%d+%.%d+)</position>"
+  return tonumber(string.gmatch(xml, pattern)())
+end
+
+local function get_length(xml)
+  local pattern = "<length>(%d+)</length>"
+  return tonumber(string.gmatch(xml, pattern)())
 end
 
 local function set_buf_credentials(ip, port, password)
@@ -49,7 +58,7 @@ local function get_buf_credentials()
 end
 
 local function get_status_full(ip, port, password, req, callback)
-  local client = uv.new_tcp()
+  local client = vim.uv.new_tcp()
   client:connect(ip, port, function(err)
     if err then
       print("Error connecting to VLC: " .. err)
@@ -119,11 +128,11 @@ vim.api.nvim_create_user_command("SrtConnect", function(opts)
 
   vim.cmd("write! /tmp/srtnvim.srt")
 
-  get_status_full(ip, port, password, "addsubtitle&val=/tmp/srtnvim.srt", function(result)
+  get_status_full(ip, port, password, "addsubtitle&val=/tmp/srtnvim.srt", function(xml)
     print("Subtitle added")
 
     set_buf_credentials(ip, port, password)
-    local track = subtitle_track(result)
+    local track = subtitle_track(xml)
     print(track)
     get_status(get_buf_credentials(), "subtitle_track&val=" .. (track + 1), function()
       print("Subtitle track " .. track .. "set")
@@ -137,9 +146,9 @@ local function upload_subtitle(credentials)
   get_status(
   credentials,
   "addsubtitle&val=/tmp/srtnvim.srt",
-  function(result)
+  function(xml)
     set_buf_credentials(credentials.ip, credentials.port, credentials.password)
-    local track = subtitle_track(result)
+    local track = subtitle_track(xml)
     print(track)
     get_status(credentials, "subtitle_track&val=" .. (track + 1), function()
       print("Subtitle track " .. track .. "set")
@@ -234,8 +243,50 @@ define_video_command("SrtVideoJump", function(args, data)
   end)
 end, { desc = "Seek the video to the subtitle under the cursor (affects video)" })
 
-define_video_command("SrtVideoTrack", function()
-  print("Video track!")
-end, { desc = "Follow the current subtitle in the buffer (affects text editor)" })
+
+local timers = {}
+
+
+define_video_command("SrtVideoTrack", function(args, data)
+  if timers[data.buf] then
+    timers[data.buf]:stop()
+    timers[data.buf] = nil
+    return
+  end
+
+  local timer = vim.uv.new_timer()
+  timers[data.buf] = timer
+
+  local function insert_timer()
+    timer:start(200, 0, vim.schedule_wrap(function()
+      timer:stop()
+      get_status(data.credentials, nil, function(xml)
+        if data.config.seek_while_paused or is_playing(xml) then
+          local pos = get_position(xml)
+          local len = get_length(xml)
+          local point = len * pos
+          local subs, err = get_subs.parse(data.lines)
+          if err or not subs then
+            get_subs.print_err(err)
+            return
+          end
+          local sub_i = get_subs.find_subtitle_by_ms(subs, point * 1000)
+          local sub = subs[sub_i]
+          local line = sub.line_pos + 2
+          if line > #data.lines then
+            line = #data.lines
+          end
+          vim.schedule(function()
+            vim.api.nvim_win_set_cursor(0, { line, 0 })
+            vim.cmd("normal! zz")
+          end)
+        end
+        insert_timer()
+      end)
+    end))
+  end
+
+  insert_timer()
+end, { desc = "Toggle following the current subtitle in the buffer (affects text editor)" })
 
 return M
