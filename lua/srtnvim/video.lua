@@ -1,10 +1,13 @@
 local vim = vim
-local uv = vim.uv
 local base64 = require("srtnvim.base64")
 local get_subs = require("srtnvim.get_subs")
 local config = require("srtnvim.config")
 
 local M = {}
+
+local VLC_IP = "srtnvim_vlc_ip"
+local VLC_PORT = "srtnvim_vlc_port"
+local VLC_PASSWORD = "srtnvim_vlc_password"
 
 local function subtitle_track(xml)
   local pattern = "<category%sname='Stream%s(%d+)'>"
@@ -30,7 +33,6 @@ local function is_playing(xml)
 end
 
 local function get_position(xml)
-  -- position is a really long float from 0 to 1
   local pattern = "<position>(%d+%.%d+)</position>"
   return tonumber(string.gmatch(xml, pattern)())
 end
@@ -40,21 +42,23 @@ local function get_length(xml)
   return tonumber(string.gmatch(xml, pattern)())
 end
 
-local function set_buf_credentials(ip, port, password)
-  vim.b.srtnvim_vlc_ip = ip
-  vim.b.srtnvim_vlc_port = port
-  vim.b.srtnvim_vlc_password = password
+local function set_buf_credentials(buf, ip, port, password)
+  vim.api.nvim_buf_set_var(buf, VLC_IP, ip)
+  vim.api.nvim_buf_set_var(buf, VLC_PORT, port)
+  vim.api.nvim_buf_set_var(buf, VLC_PASSWORD, password)
 end
 
-local function get_buf_credentials()
-  if not vim.b.srtnvim_vlc_ip then
+local function get_buf_credentials(buf)
+  local ok, ip = pcall(vim.api.nvim_buf_get_var, buf, VLC_IP)
+  if ok then
+  return {
+    ip = vim.api.nvim_buf_get_var(buf, VLC_IP),
+    port = vim.api.nvim_buf_get_var(buf, VLC_PORT),
+    password = vim.api.nvim_buf_get_var(buf, VLC_PASSWORD)
+  }
+  else
     return nil
   end
-  return {
-    ip = vim.b.srtnvim_vlc_ip,
-    port = vim.b.srtnvim_vlc_port,
-    password = vim.b.srtnvim_vlc_password
-  }
 end
 
 local function get_status_full(ip, port, password, req, callback)
@@ -72,9 +76,8 @@ local function get_status_full(ip, port, password, req, callback)
     end
 
     local auth = base64.encode(":" .. password)
-    local req = "GET /requests/status.xml" .. command .. " HTTP/1.1\n"
-    -- print(req)
-    client:write(req)
+    local req_full = "GET /requests/status.xml" .. command .. " HTTP/1.1\n"
+    client:write(req_full)
     client:write("Host: " .. ip .. ":" .. port .. "\n")
     client:write("Authorization: Basic " .. auth .. "\n")
     client:write("User-Agent: curl/8.11.1\n")
@@ -107,13 +110,15 @@ end
 
 local function get_status(credentials, req, callback)
   get_status_full(credentials.ip,
-  credentials.port,
-  credentials.password,
-  req,
-  callback)
+    credentials.port,
+    credentials.password,
+    req,
+    callback)
 end
 
+
 vim.api.nvim_create_user_command("SrtConnect", function(opts)
+  local buf = vim.api.nvim_get_current_buf()
   local args = vim.split(opts.args, " ")
   local ip = "127.0.0.1"
   local port = 8080
@@ -131,10 +136,16 @@ vim.api.nvim_create_user_command("SrtConnect", function(opts)
   get_status_full(ip, port, password, "addsubtitle&val=/tmp/srtnvim.srt", function(xml)
     print("Subtitle added")
 
-    set_buf_credentials(ip, port, password)
+    vim.schedule(function ()
+      set_buf_credentials(buf, ip, port, password)
+    end)
     local track = subtitle_track(xml)
     print(track)
-    get_status(get_buf_credentials(), "subtitle_track&val=" .. (track + 1), function()
+    get_status({
+      ip = ip,
+      port = port,
+      password = password
+    }, "subtitle_track&val=" .. (track + 1), function()
       print("Subtitle track " .. track .. "set")
     end)
   end)
@@ -144,34 +155,34 @@ local function upload_subtitle(credentials)
   vim.cmd("write! /tmp/srtnvim.srt")
 
   get_status(
-  credentials,
-  "addsubtitle&val=/tmp/srtnvim.srt",
-  function(xml)
-    set_buf_credentials(credentials.ip, credentials.port, credentials.password)
-    local track = subtitle_track(xml)
-    print(track)
-    get_status(credentials, "subtitle_track&val=" .. (track + 1), function()
-      print("Subtitle track " .. track .. "set")
+    credentials,
+    "addsubtitle&val=/tmp/srtnvim.srt",
+    function(xml)
+      set_buf_credentials(credentials.ip, credentials.port, credentials.password)
+      local track = subtitle_track(xml)
+      print(track)
+      get_status(credentials, "subtitle_track&val=" .. (track + 1), function()
+        print("Subtitle track " .. track .. "set")
+      end)
     end)
-  end)
 end
 
 
-local function get_data()
-  local buf = vim.api.nvim_get_current_buf()
+local function get_data(buf)
   return {
     config = config.get_config(),
     buf = buf,
     line = vim.api.nvim_win_get_cursor(0)[1],
     col = vim.api.nvim_win_get_cursor(0)[2],
     lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false),
-    credentials = get_buf_credentials()
+    credentials = get_buf_credentials(buf)
   }
 end
 
 local function define_video_command(name, func, options)
   local command = function(args)
-    local data = get_data()
+    local buf = vim.api.nvim_get_current_buf()
+    local data = get_data(buf)
 
     if not data.credentials then
       print("Not connected to a video")
@@ -208,16 +219,10 @@ define_video_command("SrtVideoPlay", function(args, data)
   end)
 end, { desc = "Play the video" })
 
-vim.api.nvim_create_user_command("SrtVideoPlayToggle", function()
-  local credentials = get_buf_credentials()
-  if not credentials then
-    print("Not connected to a video")
-    return
-  end
-
-  get_status(credentials, nil, function(xml)
+define_video_command("SrtVideoPlayToggle", function(args, data)
+  get_status(data.credentials, nil, function(xml)
     local playing = is_playing(xml)
-    get_status(credentials, "pl_pause", function()
+    get_status(data.credentials, "pl_pause", function()
       if playing then
         print("Video paused")
       else
@@ -247,46 +252,80 @@ end, { desc = "Seek the video to the subtitle under the cursor (affects video)" 
 local timers = {}
 
 
+local function clear_timers(buf)
+  if timers[buf] then
+    for _, timer in ipairs(timers[buf]) do
+      timer:stop()
+    end
+    timers[buf] = nil
+    return true
+  end
+  return false
+end
+
+local VLC_PIT = "srtnvim_vlc_pit"
+local VLC_PLAYING = "srtnvim_vlc_playing"
+
 define_video_command("SrtVideoTrack", function(args, data)
-  if timers[data.buf] then
-    timers[data.buf]:stop()
-    timers[data.buf] = nil
+  if clear_timers(data.buf) then
     return
   end
 
-  local timer = vim.uv.new_timer()
-  timers[data.buf] = timer
+  vim.api.nvim_buf_set_var(data.buf, VLC_PIT, -1)
+  vim.api.nvim_buf_set_var(data.buf, VLC_PLAYING, false)
 
-  local function insert_timer()
-    timer:start(200, 0, vim.schedule_wrap(function()
+  local timer = vim.uv.new_timer()
+  local cursor_timer = vim.uv.new_timer()
+  timers[data.buf] = { timer, cursor_timer }
+
+  -- TODO: Actually get new data
+  local function start_req_timer()
+    timer:start(300, 0, vim.schedule_wrap(function()
       timer:stop()
       get_status(data.credentials, nil, function(xml)
-        if data.config.seek_while_paused or is_playing(xml) then
           local pos = get_position(xml)
           local len = get_length(xml)
-          local point = len * pos
-          local subs, err = get_subs.parse(data.lines)
-          if err or not subs then
-            get_subs.print_err(err)
-            return
-          end
-          local sub_i = get_subs.find_subtitle_by_ms(subs, point * 1000)
-          local sub = subs[sub_i]
-          local line = sub.line_pos + 2
-          if line > #data.lines then
-            line = #data.lines
-          end
+          local point = math.floor(len * pos)
           vim.schedule(function()
-            vim.api.nvim_win_set_cursor(0, { line, 0 })
-            vim.cmd("normal! zz")
+            print(vim.inspect(point))
+            vim.api.nvim_buf_set_var(data.buf, VLC_PIT, point)
+            vim.api.nvim_buf_set_var(data.buf, VLC_PLAYING, is_playing(xml))
           end)
-        end
-        insert_timer()
+        start_req_timer()
       end)
     end))
   end
 
-  insert_timer()
+  local function start_cursor_timer()
+    cursor_timer:start(300, 0, vim.schedule_wrap(function()
+      cursor_timer:stop()
+      local pit = vim.api.nvim_buf_get_var(data.buf, VLC_PIT)
+      local playing = vim.api.nvim_buf_get_var(data.buf, VLC_PLAYING)
+      if pit ~= -1 and (data.config.seek_while_paused or playing) then
+        local new_data = get_data(data.buf)
+        local subs, err = get_subs.parse(new_data.lines)
+        if err or not subs then
+          get_subs.print_err(err)
+          return
+        end
+        print(vim.inspect(pit))
+        local sub_i = get_subs.find_subtitle_by_ms(subs, pit * 1000)
+        local sub = subs[sub_i]
+        local line = sub.line_pos + 2
+        if line > #new_data.lines then
+          line = #new_data.lines
+        end
+        vim.schedule(function()
+          vim.api.nvim_win_set_cursor(0, { line, 0 })
+          vim.cmd("normal! zz")
+        end)
+      end
+      start_cursor_timer()
+    end))
+  end
+
+  start_req_timer()
+  start_cursor_timer()
 end, { desc = "Toggle following the current subtitle in the buffer (affects text editor)" })
 
 return M
