@@ -2,7 +2,7 @@ local vim = vim
 local shared_config = require("srtnvim.config")
 local get_subs = require("srtnvim.get_subs")
 local commands = require("srtnvim.commands")
-require("srtnvim.video")
+local video = require("srtnvim.video")
 
 local M = {}
 
@@ -33,6 +33,11 @@ local defaults = {
   fix_infringing_min_pause = true,
   shift_ms = 100,
   seek_while_paused = true,
+  -- when to upload subtitles to VLC
+  -- "never" - never
+  -- "on_save" - when the buffer is saved
+  -- "on_change" - when the buffer is changed
+  sync_mode = "on_save",
 }
 
 local config = vim.tbl_deep_extend("keep", defaults, {})
@@ -49,8 +54,6 @@ function M.setup(user_opts)
     pause_lines = get_subs.preproduce_pause_lines(config)
   }
   shared_config.set_config(get_config)
-  -- commands.set_config(get_config)
-  -- video.set_config(get_config)
 end
 
 vim.api.nvim_create_user_command("SrtToggle", function()
@@ -77,6 +80,19 @@ vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "BufEnter" }, {
   callback = function(ev)
     commands.fix_indices_buf(ev.buf)
     get_subs.annotate_subs(ev.buf, config, data, false)
+    if config.sync_mode == "on_change" then
+      video.notify_update(ev.buf)
+    end
+  end
+})
+
+vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+  group = augroup,
+  pattern = { "*.srt" },
+  callback = function(ev)
+    if config.sync_mode == "on_save" then
+      video.notify_update(ev.buf)
+    end
   end
 })
 

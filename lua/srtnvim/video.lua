@@ -2,6 +2,7 @@ local vim = vim
 local base64 = require("srtnvim.base64")
 local get_subs = require("srtnvim.get_subs")
 local config = require("srtnvim.config")
+local util = require("srtnvim.util")
 
 local M = {}
 
@@ -152,8 +153,12 @@ vim.api.nvim_create_user_command("SrtConnect", function(opts)
   end)
 end, { desc = "Connect to VLC", nargs = "+" })
 
-local function upload_subtitle(credentials)
-  vim.cmd("write! /tmp/srtnvim.srt")
+local function upload_subtitle(buf)
+  util.write_buffer_to_file(buf, "/tmp/srtnvim.srt")
+  local credentials = get_buf_credentials(buf)
+  if not credentials then
+    return false
+  end
 
   get_status(
     credentials,
@@ -166,6 +171,7 @@ local function upload_subtitle(credentials)
         print("Subtitle track " .. track .. "set")
       end)
     end)
+  return true
 end
 
 
@@ -302,7 +308,8 @@ define_video_command("SrtVideoTrack", function(args, data)
       cursor_timer:stop()
       local pit = pits[data.buf]
       local playing = playings[data.buf]
-      if pit ~= -1 and (data.config.seek_while_paused or playing) then
+      local cur_buf = vim.api.nvim_get_current_buf()
+      if data.buf == cur_buf and pit ~= -1 and (data.config.seek_while_paused or playing) then
         local new_data = get_data(data.buf)
         local subs, err = get_subs.parse(new_data.lines)
         if err or not subs then
@@ -325,5 +332,9 @@ define_video_command("SrtVideoTrack", function(args, data)
   start_req_timer()
   start_cursor_timer()
 end, { desc = "Toggle following the current subtitle in the buffer (affects text editor)" })
+
+function M.notify_update(buf)
+  return upload_subtitle(buf)
+end
 
 return M
