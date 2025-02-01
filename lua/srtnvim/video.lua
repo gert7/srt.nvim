@@ -263,33 +263,33 @@ local function clear_timers(buf)
   return false
 end
 
-local VLC_PIT = "srtnvim_vlc_pit"
-local VLC_PLAYING = "srtnvim_vlc_playing"
+local pits = {}
+local playings = {}
 
 define_video_command("SrtVideoTrack", function(args, data)
   if clear_timers(data.buf) then
+    pits[data.buf] = -1
+    playings[data.buf] = false
     return
   end
 
-  vim.api.nvim_buf_set_var(data.buf, VLC_PIT, -1)
-  vim.api.nvim_buf_set_var(data.buf, VLC_PLAYING, false)
+  pits[data.buf] = -1
+  playings[data.buf] = false
 
   local timer = vim.uv.new_timer()
   local cursor_timer = vim.uv.new_timer()
   timers[data.buf] = { timer, cursor_timer }
 
-  -- TODO: Actually get new data
   local function start_req_timer()
-    timer:start(300, 0, vim.schedule_wrap(function()
+    timer:start(200, 0, vim.schedule_wrap(function()
       timer:stop()
       get_status(data.credentials, nil, function(xml)
           local pos = get_position(xml)
           local len = get_length(xml)
           local point = math.floor(len * pos)
           vim.schedule(function()
-            print(vim.inspect(point))
-            vim.api.nvim_buf_set_var(data.buf, VLC_PIT, point)
-            vim.api.nvim_buf_set_var(data.buf, VLC_PLAYING, is_playing(xml))
+            pits[data.buf] = point
+            playings[data.buf] = is_playing(xml)
           end)
         start_req_timer()
       end)
@@ -297,10 +297,10 @@ define_video_command("SrtVideoTrack", function(args, data)
   end
 
   local function start_cursor_timer()
-    cursor_timer:start(300, 0, vim.schedule_wrap(function()
+    cursor_timer:start(100, 0, vim.schedule_wrap(function()
       cursor_timer:stop()
-      local pit = vim.api.nvim_buf_get_var(data.buf, VLC_PIT)
-      local playing = vim.api.nvim_buf_get_var(data.buf, VLC_PLAYING)
+      local pit = pits[data.buf]
+      local playing = playings[data.buf]
       if pit ~= -1 and (data.config.seek_while_paused or playing) then
         local new_data = get_data(data.buf)
         local subs, err = get_subs.parse(new_data.lines)
@@ -308,17 +308,14 @@ define_video_command("SrtVideoTrack", function(args, data)
           get_subs.print_err(err)
           return
         end
-        print(vim.inspect(pit))
         local sub_i = get_subs.find_subtitle_by_ms(subs, pit * 1000)
         local sub = subs[sub_i]
         local line = sub.line_pos + 2
         if line > #new_data.lines then
           line = #new_data.lines
         end
-        vim.schedule(function()
-          vim.api.nvim_win_set_cursor(0, { line, 0 })
-          vim.cmd("normal! zz")
-        end)
+        vim.api.nvim_win_set_cursor(0, { line, 0 })
+        vim.cmd("normal! zz")
       end
       start_cursor_timer()
     end))
