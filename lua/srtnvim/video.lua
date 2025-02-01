@@ -42,20 +42,24 @@ local function get_length(xml)
   return tonumber(string.gmatch(xml, pattern)())
 end
 
+local ips = {}
+local ports = {}
+local passwords = {}
+
 local function set_buf_credentials(buf, ip, port, password)
-  vim.api.nvim_buf_set_var(buf, VLC_IP, ip)
-  vim.api.nvim_buf_set_var(buf, VLC_PORT, port)
-  vim.api.nvim_buf_set_var(buf, VLC_PASSWORD, password)
+  ips[buf] = ip
+  ports[buf] = port
+  passwords[buf] = password
 end
 
 local function get_buf_credentials(buf)
-  local ok, ip = pcall(vim.api.nvim_buf_get_var, buf, VLC_IP)
-  if ok then
-  return {
-    ip = vim.api.nvim_buf_get_var(buf, VLC_IP),
-    port = vim.api.nvim_buf_get_var(buf, VLC_PORT),
-    password = vim.api.nvim_buf_get_var(buf, VLC_PASSWORD)
-  }
+  local ip = ips[buf]
+  if ip then
+    return {
+      ip = ip,
+      port = ports[buf],
+      password = passwords[buf]
+    }
   else
     return nil
   end
@@ -134,13 +138,10 @@ vim.api.nvim_create_user_command("SrtConnect", function(opts)
   vim.cmd("write! /tmp/srtnvim.srt")
 
   get_status_full(ip, port, password, "addsubtitle&val=/tmp/srtnvim.srt", function(xml)
-    print("Subtitle added")
-
     vim.schedule(function ()
       set_buf_credentials(buf, ip, port, password)
     end)
     local track = subtitle_track(xml)
-    print(track)
     get_status({
       ip = ip,
       port = port,

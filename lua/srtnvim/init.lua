@@ -19,6 +19,7 @@ local defaults = {
   max_duration = -1,
   tackle = ".",
   tackle_middle = " ",
+  max_length = 40,
   max_cps = 21,
   extra_spaces = 0,
   -- modes:

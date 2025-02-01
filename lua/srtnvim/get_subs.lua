@@ -199,7 +199,7 @@ function M.annotate_subs(buf, config, data, has_groups)
           table.insert(diagnostics, {
             lnum = last_timing_k - 1,
             col = 0,
-            message = "Subtitle is too short"
+            message = "Duration is too short"
           })
         end
 
@@ -228,6 +228,13 @@ function M.annotate_subs(buf, config, data, has_groups)
         local clean_s = remove_tags(v)
         total_length = total_length + clean_s:len()
         line_count = line_count + 1
+        if config.max_length ~= -1 and clean_s:len() > config.max_length then
+          table.insert(diagnostics, {
+            lnum = k - 1,
+            col = 0,
+            message = "Line is too long"
+          })
+        end
       end
     end
   end
