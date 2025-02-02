@@ -140,15 +140,12 @@ define_command("SrtSplit", function(args, data)
     print("Invalid split mode")
     return
   end
-  local buf = vim.api.nvim_get_current_buf()
-  local line = vim.api.nvim_win_get_cursor(0)[1]
-  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  local subs, err = get_subs.parse(lines)
+  local subs, err = get_subs.parse(data.lines)
   if err or not subs then
     get_subs.print_err(err)
     return
   end
-  local sub_i = get_subs.find_subtitle(subs, line)
+  local sub_i = get_subs.find_subtitle(subs, data.line)
 
   if not sub_i then
     print("Not in a subtitle")
@@ -168,9 +165,9 @@ define_command("SrtSplit", function(args, data)
     return
   end
 
-  local ind_lines = vim.api.nvim_buf_get_lines(buf, subs[sub_i + 1].line_pos - 1, -1, false)
+  local ind_lines = vim.api.nvim_buf_get_lines(data.buf, subs[sub_i + 1].line_pos - 1, -1, false)
   local new_lines = add_to_indices(ind_lines, subs, sub_i + 1, 1)
-  vim.api.nvim_buf_set_lines(buf, subs[sub_i + 1].line_pos - 1, -1, false, new_lines)
+  vim.api.nvim_buf_set_lines(data.buf, subs[sub_i + 1].line_pos - 1, -1, false, new_lines)
 
   local split_point = sub.line_pos + 1 + line_count / 2
 
@@ -194,10 +191,10 @@ define_command("SrtSplit", function(args, data)
   local last_start = make_dur_ms(split_ms + mp)
   local new_index = tostring(sub.index + 1)
 
-  local first_start = lines[sub.line_pos + 1]:sub(1, 17)
-  local last_end = lines[sub.line_pos + 1]:sub(13, 29)
+  local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
+  local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
 
-  vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false,
+  vim.api.nvim_buf_set_lines(data.buf, sub.line_pos, sub.line_pos + 1, false,
     { first_start .. first_end })
 
   local new_header = {
@@ -206,7 +203,7 @@ define_command("SrtSplit", function(args, data)
     last_start .. last_end
   }
 
-  vim.api.nvim_buf_set_lines(buf, split_point, split_point, false, new_header)
+  vim.api.nvim_buf_set_lines(data.buf, split_point, split_point, false, new_header)
 end, {
   desc = "Split the subtitle in two",
   nargs = "?",
