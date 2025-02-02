@@ -52,13 +52,13 @@ function M.preproduce_pause_lines(config)
   table.insert(pause_lines, format(sample3))
   table.insert(pause_lines, format(sample4))
   table.insert(pause_lines, format(sample5))
-  table.insert(pause_lines, 0, format(sample0))
-  return pause_lines
+  table.insert(pause_lines, format(sample0))
+  return pause_lines, sample0
 end
 
 local function get_pause_line(pause, config, pause_lines)
   if not config.tackle_enabled then
-    return pause_lines[0]
+    return pause_lines[6]
   end
   if pause < config.min_pause then
     return pause_lines[1]

@@ -96,4 +96,6 @@ vim.api.nvim_create_autocmd({ "BufWritePost" }, {
   end
 })
 
+M.parse = get_subs.parse
+
 return M
