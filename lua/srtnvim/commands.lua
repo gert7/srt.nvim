@@ -383,6 +383,27 @@ local function parse_time(string)
 end
 
 
+local function srt_shift(subs, lines, from, to, shift)
+  if to == -1 then
+    to = #subs
+  end
+  for i = from, to do
+    local sub = subs[i]
+    local new_start = sub.start_ms + shift
+    local new_end = sub.end_ms + shift
+
+    if new_start < 0 or new_end < 0 then
+      local over = 0 - new_start
+      local over_fmt = make_dur_ms(over)
+      return lines, "Can't shift subtitle " .. sub.index .. " before 0. Over by " .. over_fmt
+    end
+
+    lines[sub.line_pos + 1] = make_dur_full_ms(new_start, new_end)
+  end
+  return lines, nil
+end
+
+
 define_command("SrtShift", function(args, data)
   local subs, err = get_subs.parse(data.lines)
   if err or not subs then
@@ -407,27 +428,16 @@ define_command("SrtShift", function(args, data)
     return
   end
 
-  -- TODO: Optimize this
-  for i = sub_first, sub_last do
-    local sub = subs[i]
-    local new_start = sub.start_ms + shift
-    local new_end = sub.end_ms + shift
+  local lines, shift_err = srt_shift(subs, data.lines, sub_first, sub_last, shift)
 
-    if new_start < 0 or new_end < 0 then
-      local over = 0 - new_start
-      local over_fmt = make_dur_ms(over)
-      print("Can't shift subtitle before 0. Over by " .. over_fmt)
-      return
-    end
-
-    vim.api.nvim_buf_set_lines(
-      data.buf,
-      sub.line_pos,
-      sub.line_pos + 1,
-      false,
-      { make_dur_full_ms(new_start, new_end) })
+  if shift_err then
+    print(shift_err)
+    return
   end
-  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+
+  vim.api.nvim_buf_set_lines(data.buf, 0, -1, false, lines)
+
+  lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
   subs, _ = get_subs.parse(lines)
   sub_sort(data.buf, lines, subs)
 end, { desc = "Shift the current subtitle", nargs = 1, range = true })
@@ -446,23 +456,16 @@ define_command("SrtShiftAll", function(args, data)
     return
   end
 
-  for _, sub in ipairs(subs) do
-    local new_start = sub.start_ms + shift
-    local new_end = sub.end_ms + shift
+  local lines, shift_err = srt_shift(subs, data.lines, 1, -1, shift)
 
-    if new_start < 0 or new_end < 0 then
-      local over = 0 - new_start
-      local over_fmt = make_dur_ms(over)
-      print("Can't shift subtitle " .. sub.index .. " before 0. Over by " .. over_fmt)
-      return
-    end
-
-    data.lines[sub.line_pos + 1] = make_dur_full_ms(new_start, new_end)
+  if shift_err then
+    print(shift_err)
+    return
   end
 
-  vim.api.nvim_buf_set_lines(data.buf, 0, -1, false, data.lines)
+  vim.api.nvim_buf_set_lines(data.buf, 0, -1, false, lines)
 
-  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+  lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
   subs, _ = get_subs.parse(lines)
   sub_sort(data.buf, lines, subs)
 end, { desc = "Shift all subtitles", nargs = 1 })
