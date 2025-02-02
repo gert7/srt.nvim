@@ -608,7 +608,7 @@ define_command("SrtShiftTime", function(args, data)
       { new_start .. last_end }
     )
   elseif data.col >= 16 and data.col <= 28 then
-    local new_ms = sub.start_ms + offset
+    local new_ms = sub.end_ms + offset
     if new_ms < 0 then
       print("End time cannot be negative")
       return

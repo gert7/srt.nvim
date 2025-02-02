@@ -41,6 +41,7 @@ function M.preproduce_pause_lines(config)
     return (sample:gsub("%.", tl):gsub(",", tm):gsub(":", tr):gsub("&", extra_spaces))
   end
 
+  local sample0 = "                                 &(%s)"
   local sample1 = "                .:               &(%s)"
   local sample2 = "               .,,:              &(%s)"
   local sample3 = "              .,,,,:             &(%s)"
@@ -51,12 +52,13 @@ function M.preproduce_pause_lines(config)
   table.insert(pause_lines, format(sample3))
   table.insert(pause_lines, format(sample4))
   table.insert(pause_lines, format(sample5))
+  table.insert(pause_lines, 0, format(sample0))
   return pause_lines
 end
 
 local function get_pause_line(pause, config, pause_lines)
   if not config.tackle_enabled then
-    return "                                 (%s)"
+    return pause_lines[0]
   end
   if pause < config.min_pause then
     return pause_lines[1]
