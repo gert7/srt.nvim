@@ -6,9 +6,8 @@ local util = require("srtnvim.util")
 
 local M = {}
 
-local VLC_IP = "srtnvim_vlc_ip"
-local VLC_PORT = "srtnvim_vlc_port"
-local VLC_PASSWORD = "srtnvim_vlc_password"
+local REQUEST_TIMER = 200
+local CURSOR_TIMER = 100
 
 local function subtitle_track(xml)
   local pattern = "<category%sname='Stream%s(%d+)'>"
@@ -288,7 +287,7 @@ define_video_command("SrtVideoTrack", function(args, data)
   timers[data.buf] = { timer, cursor_timer }
 
   local function start_req_timer()
-    timer:start(200, 0, vim.schedule_wrap(function()
+    timer:start(REQUEST_TIMER, 0, vim.schedule_wrap(function()
       timer:stop()
       get_status(data.credentials, nil, function(xml)
           local pos = get_position(xml)
@@ -304,12 +303,12 @@ define_video_command("SrtVideoTrack", function(args, data)
   end
 
   local function start_cursor_timer()
-    cursor_timer:start(100, 0, vim.schedule_wrap(function()
+    cursor_timer:start(CURSOR_TIMER, 0, vim.schedule_wrap(function()
       cursor_timer:stop()
       local pit = pits[data.buf]
       local playing = playings[data.buf]
       local cur_buf = vim.api.nvim_get_current_buf()
-      if data.buf == cur_buf and pit ~= -1 and (data.config.seek_while_paused or playing) then
+      if cur_buf == data.buf and pit ~= -1 and (data.config.seek_while_paused or playing) then
         local new_data = get_data(data.buf)
         local subs, err = get_subs.parse(new_data.lines)
         if err or not subs then
@@ -332,6 +331,11 @@ define_video_command("SrtVideoTrack", function(args, data)
   start_req_timer()
   start_cursor_timer()
 end, { desc = "Toggle following the current subtitle in the buffer (affects text editor)" })
+
+define_video_command("SrtVideoUpload", function(args, data)
+  upload_subtitle(data.buf)
+end, { desc = "Upload subtitles to VLC" })
+
 
 function M.notify_update(buf)
   return upload_subtitle(buf)
