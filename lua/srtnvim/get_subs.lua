@@ -205,13 +205,21 @@ function M.annotate_subs(buf, config, data, has_groups)
           })
         end
 
+        if config.max_length_sub ~= -1 and total_length > config.max_length_sub then
+          table.insert(diagnostics, {
+            lnum = last_timing_k - 1,
+            col = 0,
+            message = "Subtitle has too many characters"
+          })
+        end
+
         local dur_bar = ""
 
         if config.length then
           dur_bar = dur_bar .. extra_spaces .. " =  " .. fmt_s(last_timing)
         end
 
-        if config.cps_warning and cps > config.max_cps then
+        if config.cps or (config.cps_warning and cps > config.max_cps) then
           local percent = cps / config.max_cps * 100
           dur_bar = dur_bar .. string.format(cps_mark, percent)
         end

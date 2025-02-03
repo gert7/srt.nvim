@@ -8,10 +8,12 @@ local M = {}
 
 local defaults = {
   enabled = true,
+  autofix_index = true,
   length = true,
   pause = true, -- pause will still be shown if pause warning is shown
   pause_warning = true,
   overlap_warning = true,
+  cps = false,
   cps_warning = true,
   tackle_enabled = true,
   min_pause = 100,
@@ -20,6 +22,7 @@ local defaults = {
   tackle = ".",
   tackle_middle = " ",
   max_length = 40,
+  max_length_sub = -1,
   max_cps = 21,
   extra_spaces = 0,
   -- modes:
@@ -30,7 +33,7 @@ local defaults = {
   -- whether fixing overlapping subtitles should add a minimum pause
   fix_with_min_pause = true,
   -- whether subtitles with a pause that is too short should also be fixed
-  fix_infringing_min_pause = true,
+  fix_bad_min_pause = true,
   shift_ms = 100,
   seek_while_paused = true,
   -- when to upload subtitles to VLC
@@ -78,7 +81,9 @@ vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "BufEnter" }, {
   group = augroup,
   pattern = { "*.srt" },
   callback = function(ev)
-    commands.fix_indices_buf(ev.buf)
+    if config.autofix_index then
+      commands.fix_indices_buf(ev.buf)
+    end
     get_subs.annotate_subs(ev.buf, config, data, false)
     if config.sync_mode == "on_change" then
       video.notify_update(ev.buf)

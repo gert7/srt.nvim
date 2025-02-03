@@ -272,7 +272,7 @@ local function fix_timing(buf, lines, subs, i, config)
   if sub.start_ms > sub.end_ms then
     return false, "Subtitle " .. sub.index .. " has a negative duration"
   elseif sub.end_ms > next.start_ms or
-      (config.fix_infringing_min_pause and sub.end_ms > next.start_ms - config.min_pause) then
+      (config.fix_bad_min_pause and sub.end_ms > next.start_ms - config.min_pause) then
     local mp = 0
     if config.fix_with_min_pause then
       mp = config.min_pause

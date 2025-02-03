@@ -11,7 +11,7 @@ function M.write_buffer_to_file(buffer_number, filename)
       file:write(line .. "\n")
     end
     file:close()
-    print("Wrote buffer to " .. filename)
+    -- print("Wrote buffer to " .. filename)
   else
     print("Error opening file for writing: " .. filename)
   end
