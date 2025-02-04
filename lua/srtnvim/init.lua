@@ -1,7 +1,9 @@
 local vim = vim
-local shared_config = require("srtnvim.config")
-local get_subs = require("srtnvim.get_subs")
+local buf_sync = require("srtnvim.buf_sync")
+local c = require("srtnvim.constants")
 local commands = require("srtnvim.commands")
+local get_subs = require("srtnvim.get_subs")
+local shared_config = require("srtnvim.config")
 local video = require("srtnvim.video")
 
 local M = {}
@@ -28,7 +30,7 @@ local defaults = {
   -- modes:
   -- "half" - split in half precisely
   -- "length" - allocate time based on the length of the resulting text
-  split_mode = "length",
+  split_mode = c.SPLIT_LENGTH,
   split_with_min_pause = true,
   -- whether fixing overlapping subtitles should add a minimum pause
   fix_with_min_pause = true,
@@ -40,7 +42,7 @@ local defaults = {
   -- "never" - never
   -- "on_save" - when the buffer is saved
   -- "on_change" - when the buffer is changed
-  sync_mode = "on_save",
+  sync_mode = c.SYNC_MODE_SAVE,
 }
 
 local config = vim.tbl_deep_extend("keep", defaults, {})
@@ -77,6 +79,13 @@ end, { desc = "Toggle Srtnvim on or off" })
 
 local augroup = vim.api.nvim_create_augroup("SrtauGroup", { clear = true })
 
+local function notify_buf_sync(buf, config, instance)
+  local sync_mode = config.sync_mode_buf or config.sync_mode
+  if sync_mode == instance then
+    buf_sync.notify_update(buf)
+  end
+end
+
 vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "BufEnter" }, {
   group = augroup,
   pattern = { "*.srt" },
@@ -85,8 +94,9 @@ vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "BufEnter" }, {
       commands.fix_indices_buf(ev.buf)
     end
     get_subs.annotate_subs(ev.buf, config, data, false)
-    if config.sync_mode == "on_change" then
+    if config.sync_mode == c.SYNC_MODE_CHANGE then
       video.notify_update(ev.buf)
+      notify_buf_sync(ev.buf, config, c.SYNC_MODE_CHANGE)
     end
   end
 })
@@ -95,8 +105,9 @@ vim.api.nvim_create_autocmd({ "BufWritePost" }, {
   group = augroup,
   pattern = { "*.srt" },
   callback = function(ev)
-    if config.sync_mode == "on_save" then
+    if config.sync_mode == c.SYNC_MODE_SAVE then
       video.notify_update(ev.buf)
+      notify_buf_sync(ev.buf, config, c.SYNC_MODE_SAVE)
     end
   end
 })

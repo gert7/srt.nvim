@@ -1,4 +1,5 @@
 local vim = vim
+local c = require("srtnvim.constants")
 local config = require("srtnvim.config")
 local get_subs = require("srtnvim.get_subs")
 local subtitle = require("srtnvim.subtitle")
@@ -127,7 +128,7 @@ define_command("SrtSplit", function(args, data)
   if args.args ~= "" then
     split_mode = args.args
   end
-  if split_mode ~= "length" and split_mode ~= "half" then
+  if split_mode ~= c.SPLIT_LENGTH and split_mode ~= c.SPLIT_HALF then
     print("Invalid split mode")
     return
   end
@@ -169,7 +170,7 @@ define_command("SrtSplit", function(args, data)
 
   local split_ms = 0
 
-  if split_mode == "length" then
+  if split_mode == c.SPLIT_LENGTH then
     local length_first = sum_array(sub.line_lengths, 1, line_count / 2)
     local length_second = sum_array(sub.line_lengths, line_count / 2 + 1, line_count)
     local p = length_first / (length_first + length_second)
@@ -199,7 +200,7 @@ end, {
   desc = "Split the subtitle in two",
   nargs = "?",
   complete = function()
-    return { "length", "half" }
+    return { c.SPLIT_LENGTH, c.SPLIT_HALF }
   end
 })
 
