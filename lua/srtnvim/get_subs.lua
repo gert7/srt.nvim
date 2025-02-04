@@ -110,36 +110,32 @@ function M.annotate_subs(buf, config, data, has_groups)
     cps_mark = "    (%d%%)"
   end
 
+  local function add_diagnostic(lnum, message, col)
+    table.insert(diagnostics, {
+      lnum = lnum,
+      col = col or 0,
+      message = message
+    })
+  end
+
   for k, v in ipairs(lines) do
     if state == State.index and v ~= "" then
       local n = tonumber(v)
       if not n then
-        table.insert(diagnostics, {
-          lnum = k,
-          col = 0,
-          message = "Error reading subtitle index!"
-        })
+        add_diagnostic(k, "Error reading subtitle index!", 0)
         vim.diagnostic.set(nsid, buf, diagnostics, {})
         return
       end
 
       if n ~= last_index + 1 then
-        table.insert(diagnostics, {
-          lnum = k - 1,
-          col = 0,
-          message = "Subtitle index is not sequential!"
-        })
+        add_diagnostic(k - 1, "Subtitle index is not sequential!", 0)
       end
       last_index = n
       state = State.timing
     elseif state == State.timing then
       local f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi = string.gmatch(v, matcher)()
       if not t_mi then
-        table.insert(diagnostics, {
-          lnum = k - 1,
-          col = 0,
-          message = "Error reading duration!"
-        })
+        add_diagnostic(k - 1, "Error reading duration!", 0)
         vim.diagnostic.set(nsid, buf, diagnostics, {})
         return
       end
@@ -151,11 +147,7 @@ function M.annotate_subs(buf, config, data, has_groups)
       last_timing = to - from
 
       if from < cur_start then
-        table.insert(diagnostics, {
-          lnum = k - 1,
-          col = 0,
-          message = "Subtitle appears before previous subtitle"
-        })
+        add_diagnostic(k - 1, "Subtitle appears before previous subtitle!", 0)
       end
 
       last_end = cur_end
@@ -179,17 +171,9 @@ function M.annotate_subs(buf, config, data, has_groups)
         vim.api.nvim_buf_set_extmark(buf, nsid, pauseline, 0, opts)
 
         if config.overlap_warning and pause < 0 then
-          table.insert(diagnostics, {
-            lnum = pauseline,
-            col = 0,
-            message = "Subtitle overlaps with previous subtitle"
-          })
+          add_diagnostic(pauseline, "Subtitle overlaps with previous subtitle", 0)
         elseif pause < config.min_pause then
-          table.insert(diagnostics, {
-            lnum = pauseline,
-            col = 0,
-            message = "Pause is too short"
-          })
+          add_diagnostic(pauseline, "Pause is too short", 0)
         end
       end
       state = State.subtitle
@@ -205,19 +189,11 @@ function M.annotate_subs(buf, config, data, has_groups)
         end
 
         if config.min_duration ~= -1 and last_timing < config.min_duration then
-          table.insert(diagnostics, {
-            lnum = last_timing_k - 1,
-            col = 0,
-            message = "Duration is too short"
-          })
+          add_diagnostic(last_timing_k - 1, "Duration is too short", 0)
         end
 
         if config.max_length_sub ~= -1 and total_length > config.max_length_sub then
-          table.insert(diagnostics, {
-            lnum = last_timing_k - 1,
-            col = 0,
-            message = "Subtitle has too many characters"
-          })
+          add_diagnostic(last_timing_k - 1, "Subtitle has too many characters", 0)
         end
 
         local dur_bar = ""
@@ -249,22 +225,14 @@ function M.annotate_subs(buf, config, data, has_groups)
         total_length = total_length + len
         line_count = line_count + 1
         if config.max_length ~= -1 and len > config.max_length then
-          table.insert(diagnostics, {
-            lnum = k - 1,
-            col = 0,
-            message = "Line is too long"
-          })
+          add_diagnostic(k - 1, "Line is too long", 0)
         end
       end
     end
   end
 
   if state == State.timing then
-    table.insert(diagnostics, {
-      lnum = #lines,
-      col = 0,
-      message = "Subtitle is not terminated"
-    })
+    add_diagnostic(#lines, "Subtitle is not terminated", 0)
   end
 
   vim.diagnostic.set(nsid, buf, diagnostics, {})
