@@ -79,8 +79,8 @@ end, { desc = "Toggle Srtnvim on or off" })
 
 local augroup = vim.api.nvim_create_augroup("SrtauGroup", { clear = true })
 
-local function notify_win_sync(buf, config, instance)
-  local sync_mode = config.sync_mode_buf or config.sync_mode
+local function notify_win_sync(cfg, instance)
+  local sync_mode = cfg.sync_mode_buf or cfg.sync_mode
   if sync_mode == instance then
     win_sync.notify_update()
   end
@@ -96,7 +96,7 @@ vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "BufEnter" }, {
     get_subs.annotate_subs(ev.buf, config, data, false)
     if config.sync_mode == c.SYNC_MODE_CHANGE then
       video.notify_update(ev.buf)
-      notify_win_sync(ev.buf, config, c.SYNC_MODE_CHANGE)
+      notify_win_sync(config, c.SYNC_MODE_CHANGE)
     end
   end
 })
@@ -107,7 +107,7 @@ vim.api.nvim_create_autocmd({ "BufWritePost" }, {
   callback = function(ev)
     if config.sync_mode == c.SYNC_MODE_SAVE then
       video.notify_update(ev.buf)
-      notify_win_sync(ev.buf, config, c.SYNC_MODE_SAVE)
+      notify_win_sync(config, c.SYNC_MODE_SAVE)
     end
   end
 })

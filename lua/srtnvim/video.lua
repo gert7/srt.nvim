@@ -7,7 +7,7 @@ local util = require("srtnvim.util")
 local M = {}
 
 local REQUEST_TIMER = 200
-local CURSOR_TIMER = 100
+local CURSOR_TIMER = 200
 
 local function subtitle_track(xml)
   local pattern = "<category%sname='Stream%s(%d+)'>"
@@ -138,7 +138,7 @@ vim.api.nvim_create_user_command("SrtConnect", function(opts)
   vim.cmd("write! /tmp/srtnvim.srt")
 
   get_status_full(ip, port, password, "addsubtitle&val=/tmp/srtnvim.srt", function(xml)
-    vim.schedule(function ()
+    vim.schedule(function()
       set_buf_credentials(buf, ip, port, password)
     end)
     local track = subtitle_track(xml)
@@ -290,13 +290,17 @@ define_video_command("SrtVideoTrack", function(args, data)
     timer:start(REQUEST_TIMER, 0, vim.schedule_wrap(function()
       timer:stop()
       get_status(data.credentials, nil, function(xml)
-          local pos = get_position(xml)
-          local len = get_length(xml)
-          local point = math.floor(len * pos)
-          vim.schedule(function()
-            pits[data.buf] = point
-            playings[data.buf] = is_playing(xml)
-          end)
+        local success, pos = pcall(get_position, xml) -- ????
+        if not success then
+          print("Error getting position")
+          return
+        end
+        local len = get_length(xml)
+        local point = math.floor(len * pos)
+        vim.schedule(function()
+          pits[data.buf] = point
+          playings[data.buf] = is_playing(xml)
+        end)
         start_req_timer()
       end)
     end))
@@ -305,6 +309,9 @@ define_video_command("SrtVideoTrack", function(args, data)
   local function start_cursor_timer()
     cursor_timer:start(CURSOR_TIMER, 0, vim.schedule_wrap(function()
       cursor_timer:stop()
+      if get_buf_credentials(data.buf) == nil then
+        return
+      end
       local pit = pits[data.buf]
       local playing = playings[data.buf]
       local cur_buf = vim.api.nvim_get_current_buf()
