@@ -78,24 +78,15 @@ local function sub_merge(buf, subs, sub_i)
 end
 
 
-local function get_data()
-  local buf = vim.api.nvim_get_current_buf()
-  return {
-    config = config.get_config(),
-    buf = buf,
-    line = vim.api.nvim_win_get_cursor(0)[1],
-    col = vim.api.nvim_win_get_cursor(0)[2],
-    lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  }
-end
-
-
 local function define_command(name, func, options)
   local command = function(args)
-    func(args, get_data())
+    func(args, get_subs.get_data())
   end
   vim.api.nvim_create_user_command(name, command, options)
 end
+
+
+M.define_command = define_command
 
 
 define_command("SrtMerge", function(args, data)

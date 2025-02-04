@@ -3,6 +3,7 @@ local vim = vim
 local M = {}
 
 local subtitle = require("srtnvim.subtitle")
+local config = require("srtnvim.config")
 
 local State = {
   index = 1,
@@ -353,6 +354,17 @@ function M.find_subtitle_by_ms(subs, ms)
       high = mid - 1
     end
   end
+end
+
+function M.get_data(buf_i)
+  local buf = buf_i or vim.api.nvim_get_current_buf()
+  return {
+    config = config.get_config(),
+    buf = buf,
+    line = vim.api.nvim_win_get_cursor(0)[1],
+    col = vim.api.nvim_win_get_cursor(0)[2],
+    lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  }
 end
 
 return M
