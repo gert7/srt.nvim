@@ -196,7 +196,13 @@ function M.annotate_subs(buf, config, data, has_groups)
     elseif state == State.subtitle then
       v = v:gsub("^%s*(.-)%s*$", "%1")
       if v == "" then
-        local cps = total_length / last_timing * 1000
+        local dbz = last_timing == 0
+        local cps = 0
+        if not dbz then
+          cps = total_length / last_timing * 1000
+        else
+          cps = math.huge
+        end
 
         if config.min_duration ~= -1 and last_timing < config.min_duration then
           table.insert(diagnostics, {
@@ -220,7 +226,9 @@ function M.annotate_subs(buf, config, data, has_groups)
           dur_bar = dur_bar .. extra_spaces .. " =  " .. fmt_s(last_timing)
         end
 
-        if config.cps or (config.cps_warning and cps > config.max_cps) then
+        if cps < math.huge and
+            (config.cps or
+            (config.cps_warning and cps > config.max_cps)) then
           local percent = cps / config.max_cps * 100
           dur_bar = dur_bar .. string.format(cps_mark, percent)
         end
