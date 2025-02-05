@@ -394,27 +394,25 @@ define_video_command("SrtVideoSetTime", function (args, data)
       return
     end
     if side == "start" then
-      local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
-      local new_start = subtitle.make_dur_ms(new_ms)
+      local new_timing = subtitle.amend_start(data.lines[sub.line_pos + 1], new_ms)
       vim.schedule(function()
         vim.api.nvim_buf_set_lines(
           data.buf,
           sub.line_pos,
           sub.line_pos + 1,
           false,
-          { new_start .. last_end }
+          { new_timing }
         )
       end)
     else
-      local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
-      local new_end = subtitle.make_dur_ms(new_ms)
+      local new_timing = subtitle.amend_end(data.lines[sub.line_pos + 1], new_ms)
       vim.schedule(function()
         vim.api.nvim_buf_set_lines(
           data.buf,
           sub.line_pos,
           sub.line_pos + 1,
           false,
-          { first_start .. new_end }
+          { new_timing }
         )
       end)
     end

@@ -15,26 +15,6 @@ local function sum_array(t, s, f)
 end
 
 
--- local function make_dur(h, m, s, mi)
---   return string.format("%02d:%02d:%02d,%03d", h, m, s, mi)
--- end
-
--- local function make_dur_ms(ms)
---   local h, m, s, mi = subtitle.from_ms(ms)
---   return make_dur(h, m, s, mi)
--- end
-
--- local function make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
---   return string.format("%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d",
---     f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
--- end
-
--- local function make_dur_full_ms(f_ms, t_ms)
---   local f_h, f_m, f_s, f_mi = subtitle.from_ms(f_ms)
---   local t_h, t_m, t_s, t_mi = subtitle.from_ms(t_ms)
---   return make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
--- end
-
 --- Add a number to all indices in a table of subtitles
 -- @param lines table of lines from the .srt file
 -- @param subs table of subtitles
@@ -543,15 +523,13 @@ define_command_subtitle("SrtShiftTime", function(args, data, subs, sub_i)
       return
     end
 
-    local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
-
-    local new_start = subtitle.make_dur_ms(new_ms)
+    local new_timing = subtitle.amend_start(data.lines[sub.line_pos + 1], new_ms)
     vim.api.nvim_buf_set_lines(
       data.buf,
       sub.line_pos,
       sub.line_pos + 1,
       false,
-      { new_start .. last_end }
+      { new_timing }
     )
   elseif data.col >= 16 and data.col <= 28 then
     local new_ms = sub.end_ms + offset
@@ -559,21 +537,87 @@ define_command_subtitle("SrtShiftTime", function(args, data, subs, sub_i)
       print("End time cannot be negative")
       return
     end
-    local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
 
-    local new_end = subtitle.make_dur_ms(new_ms)
+    local new_timing = subtitle.amend_end(data.lines[sub.line_pos + 1], new_ms)
     vim.api.nvim_buf_set_lines(
       data.buf,
       sub.line_pos,
       sub.line_pos + 1,
       false,
-      { first_start .. new_end }
+      { new_timing }
     )
   else
     print("Hover over start or end time to shift")
   end
 end, { desc = "Shift either the start or end time of a subtitle.", nargs = "?" })
 
+
+define_command_subtitle("SrtEnforce", function (args, data, subs, sub_i)
+  local sub = subs[sub_i]
+  if data.line ~= sub.line_pos + 1 then
+    print("Not on duration line")
+    return
+  end
+
+  if data.col >= 0 and data.col <= 12 then
+    if sub_i == 1 then
+      print("Can't apply this on the first subtitle")
+      return
+    end
+    local sub_prev = subs[sub_i - 1]
+
+    local prev_end_ms = sub_prev.end_ms
+    local curr_start_ms = sub.start_ms
+
+    local new_ms = curr_start_ms - data.config.min_pause
+    if new_ms >= prev_end_ms then
+      print("Nothing to be done")
+      return
+    end
+    if new_ms < sub_prev.start_ms then
+      print("Would shrink previous subtitle beyond start time")
+      return
+    end
+
+    local new_timing = subtitle.amend_end(data.lines[sub_prev.line_pos + 1], new_ms)
+    vim.api.nvim_buf_set_lines(
+      data.buf,
+      sub_prev.line_pos,
+      sub_prev.line_pos + 1,
+      false,
+      { new_timing }
+    )
+  elseif data.col >= 16 and data.col <= 28 then
+    if sub_i == #subs then
+      print("Can't apply this on the last subtitle")
+      return
+    end
+
+    local sub_next = subs[sub_i + 1]
+
+    local next_start_ms = sub_next.start_ms
+    local curr_end_ms = sub.end_ms
+
+    local new_ms = curr_end_ms + data.config.min_pause
+    if new_ms <= next_start_ms then
+      print("Nothing to be done")
+      return
+    end
+    if new_ms > sub_next.end_ms then
+      print("Would shrink previous subtitle beyond end time")
+      return
+    end
+
+    local new_timing = subtitle.amend_start(data.lines[sub_next.line_pos + 1], new_ms)
+    vim.api.nvim_buf_set_lines(
+      data.buf,
+      sub_next.line_pos,
+      sub_next.line_pos + 1,
+      false,
+      { new_timing }
+    )
+  end
+end, { desc = "Enforce start or end of subtitle on adjacent subtitle, with min_pause" })
 
 
 return M

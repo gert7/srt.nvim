@@ -58,6 +58,18 @@ function M.make_dur_full_ms(f_ms, t_ms)
   return M.make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
 end
 
+function M.amend_start(line, new_ms)
+  local end_time = line:sub(13, 29)
+  local start_time = M.make_dur_ms(new_ms)
+  return start_time .. end_time
+end
+
+function M.amend_end(line, new_ms)
+  local start_time = line:sub(1, 17)
+  local end_time = M.make_dur_ms(new_ms)
+  return start_time .. end_time
+end
+
 M.Subtitle = Subtitle
 
 return M
