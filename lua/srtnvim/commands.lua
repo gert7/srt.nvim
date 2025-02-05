@@ -87,15 +87,46 @@ local function define_command(name, func, options)
 end
 
 
-M.define_command = define_command
-
-
-define_command("SrtMerge", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err then
-    get_subs.print_err(err)
-    return
+local function define_command_subs(name, func, options)
+  local command = function(args)
+    local data = get_subs.get_data()
+    local subs, err = get_subs.parse(data.lines)
+    if err then
+      get_subs.print_err(err)
+      return
+    end
+    func(args, get_subs.get_data(), subs)
   end
+  vim.api.nvim_create_user_command(name, command, options)
+end
+
+
+local function define_command_subtitle(name, func, options)
+  local command = function(args)
+    local data = get_subs.get_data()
+    local subs, err = get_subs.parse(data.lines)
+    if err then
+      get_subs.print_err(err)
+      return
+    end
+    local sub_i = get_subs.find_subtitle(subs, data.line)
+
+    if not sub_i then
+      print("Not in a subtitle")
+      return
+    end
+    func(args, get_subs.get_data(), subs, sub_i)
+  end
+  vim.api.nvim_create_user_command(name, command, options)
+end
+
+
+M.define_command = define_command
+M.define_command_subs = define_command_subs
+M.define_command_subtitle = define_command_subtitle
+
+
+define_command_subs("SrtMerge", function(args, data, subs)
   local sub_first = get_subs.find_subtitle(subs, args.line1)
   if not sub_first then
     print("Not in a subtitle")
@@ -113,6 +144,7 @@ define_command("SrtMerge", function(args, data)
 
   for _ = sub_first, sub_last do
     data.lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+    local err
     subs, err = get_subs.parse(data.lines)
     if err then
       print("Unexpected error on line " .. err[2])
@@ -123,24 +155,13 @@ define_command("SrtMerge", function(args, data)
 end, { desc = "Merge the subtitle down", range = true })
 
 
-define_command("SrtSplit", function(args, data)
+define_command_subtitle("SrtSplit", function(args, data, subs, sub_i)
   local split_mode = data.config.split_mode
   if args.args ~= "" then
     split_mode = args.args
   end
   if split_mode ~= c.SPLIT_LENGTH and split_mode ~= c.SPLIT_HALF then
     print("Invalid split mode")
-    return
-  end
-  local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
-    get_subs.print_err(err)
-    return
-  end
-  local sub_i = get_subs.find_subtitle(subs, data.line)
-
-  if not sub_i then
-    print("Not in a subtitle")
     return
   end
 
@@ -247,13 +268,7 @@ local function sub_sort(buf, lines, subs)
 end
 
 
-define_command("SrtSort", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err then
-    get_subs.print_err(err)
-    return
-  end
-
+define_command_subs("SrtSort", function(args, data, subs)
   sub_sort(data.buf, data.lines, subs)
 end, { desc = "Sort the subtitles by starting times" })
 
@@ -286,14 +301,7 @@ local function fix_timing(buf, lines, subs, i, config)
 end
 
 
-define_command("SrtFixTiming", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err then
-    get_subs.print_err(err)
-    return
-  end
-  local sub_i = get_subs.find_subtitle(subs, data.line)
-
+define_command_subtitle("SrtFixTiming", function(args, data, subs, sub_i)
   if sub_i ~= #subs then
     local fix, error = fix_timing(data.buf, data.lines, subs, sub_i, data.config)
     if fix then
@@ -307,13 +315,7 @@ define_command("SrtFixTiming", function(args, data)
 end, { desc = "Fix timing for the current subtitle" })
 
 
-define_command("SrtFixTimingAll", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err then
-    get_subs.print_err(err)
-    return
-  end
-
+define_command_subs("SrtFixTimingAll", function(args, data, subs)
   local count = 0
   for i = 1, #subs - 1 do
     local fix, error = fix_timing(data.buf, data.lines, subs, i, data.config)
@@ -393,14 +395,8 @@ local function srt_shift(subs, lines, from, to, shift)
 end
 
 
-define_command("SrtShift", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
-    get_subs.print_err(err)
-    return
-  end
+define_command_subs("SrtShift", function(args, data, subs)
   local sub_first = get_subs.find_subtitle(subs, args.line1)
-
   if not sub_first then
     print("Not in a subtitle")
     return
@@ -432,13 +428,7 @@ define_command("SrtShift", function(args, data)
 end, { desc = "Shift the current subtitle", nargs = 1, range = true })
 
 
-define_command("SrtShiftAll", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
-    get_subs.print_err(err)
-    return
-  end
-
+define_command_subs("SrtShiftAll", function(args, data, subs)
   local shift = parse_time(args.args)
   if not shift then
     print("Invalid time format")
@@ -460,21 +450,9 @@ define_command("SrtShiftAll", function(args, data)
 end, { desc = "Shift all subtitles", nargs = 1 })
 
 
-define_command("SrtImport", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
-    get_subs.print_err(err)
-    return
-  end
-  local sub_i = get_subs.find_subtitle(subs, data.line)
-
-  if not sub_i then
-    print("Not in a subtitle")
-    return
-  end
-
+define_command_subtitle("SrtImport", function(args_in, data, subs, sub_i)
   local sub = subs[sub_i]
-  local args = vim.split(args.args, " ")
+  local args = vim.split(args_in.args, " ")
   local file = args[1]
   local offset = data.config.min_pause
   if #args > 1 then
@@ -510,19 +488,7 @@ end, {
 })
 
 
-define_command("SrtAdd", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
-    get_subs.print_err(err)
-    return
-  end
-  local sub_i = get_subs.find_subtitle(subs, data.line)
-
-  if not sub_i then
-    print("Not in a subtitle")
-    return
-  end
-
+define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
   local offset = data.config.min_pause
 
   if args.args ~= "" then
@@ -553,19 +519,7 @@ define_command("SrtAdd", function(args, data)
 end, { desc = "Add a subtitle after the current one with optional offset", nargs = "?" })
 
 
-define_command("SrtShiftTime", function(args, data)
-  local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
-    get_subs.print_err(err)
-    return
-  end
-  local sub_i = get_subs.find_subtitle(subs, data.line)
-
-  if not sub_i then
-    print("Not in a subtitle")
-    return
-  end
-
+define_command_subtitle("SrtShiftTime", function(args, data, subs, sub_i)
   local sub = subs[sub_i]
   if data.line ~= sub.line_pos + 1 then
     print("Not on duration line")
@@ -619,5 +573,7 @@ define_command("SrtShiftTime", function(args, data)
     print("Hover over start or end time to shift")
   end
 end, { desc = "Shift either the start or end time of a subtitle.", nargs = "?" })
+
+
 
 return M
