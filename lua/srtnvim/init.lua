@@ -59,6 +59,17 @@ function M.setup(user_opts)
     pause_lines = get_subs.preproduce_pause_lines(config)
   }
   shared_config.set_config(get_config)
+
+  if config.split_mode ~= c.SPLIT_HALF and
+      config.split_mode ~= c.SPLIT_LENGTH then
+    print("srt.nvim configuration error: Unknown split mode '" .. config.split_mode .. "'")
+  end
+
+  if config.sync_mode ~= c.SYNC_MODE_NEVER and
+    config.sync_mode ~= c.SYNC_MODE_SAVE and
+    config.sync_mode ~= c.SYNC_MODE_CHANGE then
+      print("srt.nvim configuration error: Unknown sync mode '" .. config.sync_mode .. "'")
+    end
 end
 
 vim.api.nvim_create_user_command("SrtToggle", function()

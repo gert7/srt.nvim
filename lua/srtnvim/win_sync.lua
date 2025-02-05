@@ -1,5 +1,4 @@
 local vim = vim
-
 local commands = require('srtnvim.commands')
 local get_subs = require('srtnvim.get_subs')
 
