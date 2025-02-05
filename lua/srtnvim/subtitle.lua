@@ -38,6 +38,26 @@ function M.from_ms(ms)
   return h, m, s, ms
 end
 
+function M.make_dur(h, m, s, mi)
+  return string.format("%02d:%02d:%02d,%03d", h, m, s, mi)
+end
+
+function M.make_dur_ms(ms)
+  local h, m, s, mi = M.from_ms(ms)
+  return M.make_dur(h, m, s, mi)
+end
+
+function M.make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
+  return string.format("%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d",
+    f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
+end
+
+function M.make_dur_full_ms(f_ms, t_ms)
+  local f_h, f_m, f_s, f_mi = M.from_ms(f_ms)
+  local t_h, t_m, t_s, t_mi = M.from_ms(t_ms)
+  return M.make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
+end
+
 M.Subtitle = Subtitle
 
 return M

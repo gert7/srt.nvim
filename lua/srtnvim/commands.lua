@@ -15,25 +15,25 @@ local function sum_array(t, s, f)
 end
 
 
-local function make_dur(h, m, s, mi)
-  return string.format("%02d:%02d:%02d,%03d", h, m, s, mi)
-end
+-- local function make_dur(h, m, s, mi)
+--   return string.format("%02d:%02d:%02d,%03d", h, m, s, mi)
+-- end
 
-local function make_dur_ms(ms)
-  local h, m, s, mi = subtitle.from_ms(ms)
-  return make_dur(h, m, s, mi)
-end
+-- local function make_dur_ms(ms)
+--   local h, m, s, mi = subtitle.from_ms(ms)
+--   return make_dur(h, m, s, mi)
+-- end
 
-local function make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
-  return string.format("%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d",
-    f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
-end
+-- local function make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
+--   return string.format("%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d",
+--     f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
+-- end
 
-local function make_dur_full_ms(f_ms, t_ms)
-  local f_h, f_m, f_s, f_mi = subtitle.from_ms(f_ms)
-  local t_h, t_m, t_s, t_mi = subtitle.from_ms(t_ms)
-  return make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
-end
+-- local function make_dur_full_ms(f_ms, t_ms)
+--   local f_h, f_m, f_s, f_mi = subtitle.from_ms(f_ms)
+--   local t_h, t_m, t_s, t_mi = subtitle.from_ms(t_ms)
+--   return make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
+-- end
 
 --- Add a number to all indices in a table of subtitles
 -- @param lines table of lines from the .srt file
@@ -74,7 +74,7 @@ local function sub_merge(buf, subs, sub_i)
   local del_from = next.line_pos - 2
   vim.api.nvim_buf_set_lines(buf, del_from, del_from + 3, false, {})
 
-  local dur_line = make_dur_full_ms(sub.start_ms, next.end_ms)
+  local dur_line = subtitle.make_dur_full_ms(sub.start_ms, next.end_ms)
   vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false, { dur_line })
 end
 
@@ -179,8 +179,8 @@ define_command("SrtSplit", function(args, data)
     split_ms = sub.start_ms + sub.length_ms / 2
   end
 
-  local first_end = make_dur_ms(split_ms - mp)
-  local last_start = make_dur_ms(split_ms + mp)
+  local first_end = subtitle.make_dur_ms(split_ms - mp)
+  local last_start = subtitle.make_dur_ms(split_ms + mp)
   local new_index = tostring(sub.index + 1)
 
   local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
@@ -275,7 +275,7 @@ local function fix_timing(buf, lines, subs, i, config)
       local first_start = lines[sub.line_pos + 1]:sub(1, 17)
       -- local fe_h, fe_m, fe_s, fe_mi = subtitle.from_ms(new_end)
       vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false,
-        { first_start .. make_dur_ms(new_end) })
+        { first_start .. subtitle.make_dur_ms(new_end) })
     else
       return false, "Can't shrink subtitle " .. sub.index .. ", would break min_duration"
     end
@@ -383,11 +383,11 @@ local function srt_shift(subs, lines, from, to, shift)
 
     if new_start < 0 or new_end < 0 then
       local over = 0 - new_start
-      local over_fmt = make_dur_ms(over)
+      local over_fmt = subtitle.make_dur_ms(over)
       return lines, "Can't shift subtitle " .. sub.index .. " before 0. Over by " .. over_fmt
     end
 
-    lines[sub.line_pos + 1] = make_dur_full_ms(new_start, new_end)
+    lines[sub.line_pos + 1] = subtitle.make_dur_full_ms(new_start, new_end)
   end
   return lines, nil
 end
@@ -495,7 +495,7 @@ define_command("SrtImport", function(args, data)
   for _, new_sub in ipairs(new_subs) do
     local new_start = new_sub.start_ms + sub.end_ms + offset
     local new_end = new_sub.end_ms + sub.end_ms + offset
-    new_lines[new_sub.line_pos + 1] = make_dur_full_ms(new_start, new_end)
+    new_lines[new_sub.line_pos + 1] = subtitle.make_dur_full_ms(new_start, new_end)
   end
 
   vim.api.nvim_buf_set_lines(data.buf, -1, -1, false, new_lines)
@@ -541,7 +541,7 @@ define_command("SrtAdd", function(args, data)
   local new_header = {
     "",
     tostring(sub.index + 1),
-    make_dur_full_ms(new_start, new_end)
+    subtitle.make_dur_full_ms(new_start, new_end)
   }
 
   vim.api.nvim_buf_set_lines(data.buf, new_line, new_line, false, new_header)
@@ -591,7 +591,7 @@ define_command("SrtShiftTime", function(args, data)
 
     local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
 
-    local new_start = make_dur_ms(new_ms)
+    local new_start = subtitle.make_dur_ms(new_ms)
     vim.api.nvim_buf_set_lines(
       data.buf,
       sub.line_pos,
@@ -607,7 +607,7 @@ define_command("SrtShiftTime", function(args, data)
     end
     local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
 
-    local new_end = make_dur_ms(new_ms)
+    local new_end = subtitle.make_dur_ms(new_ms)
     vim.api.nvim_buf_set_lines(
       data.buf,
       sub.line_pos,

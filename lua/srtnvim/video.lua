@@ -1,7 +1,8 @@
 local vim = vim
 local base64 = require("srtnvim.base64")
-local get_subs = require("srtnvim.get_subs")
 local config = require("srtnvim.config")
+local get_subs = require("srtnvim.get_subs")
+local subtitle = require("srtnvim.subtitle")
 local util = require("srtnvim.util")
 
 local M = {}
@@ -40,6 +41,13 @@ end
 local function get_length(xml)
   local pattern = "<length>(%d+)</length>"
   return tonumber(string.gmatch(xml, pattern)())
+end
+
+--- Get the current position in milliseconds and the length of the video
+local function get_pit(xml)
+  local pos = get_position(xml)
+  local len = get_length(xml)
+  return len * pos * 1000, len
 end
 
 local ips = {}
@@ -296,9 +304,10 @@ define_video_command("SrtVideoTrack", function(args, data)
           return
         end
         local len = get_length(xml)
-        local point = math.floor(len * pos)
+        -- local point = math.floor(len * pos)
+        local point = len * pos
         vim.schedule(function()
-          pits[data.buf] = point
+          pits[data.buf] = point * 1000
           playings[data.buf] = is_playing(xml)
         end)
         start_req_timer()
@@ -322,7 +331,7 @@ define_video_command("SrtVideoTrack", function(args, data)
           get_subs.print_err(err)
           return
         end
-        local sub_i = get_subs.find_subtitle_by_ms(subs, pit * 1000)
+        local sub_i = get_subs.find_subtitle_by_ms(subs, pit)
         local sub = subs[sub_i]
         local line = sub.line_pos + 2
         if line > #new_data.lines then
@@ -343,6 +352,75 @@ define_video_command("SrtVideoUpload", function(args, data)
   upload_subtitle(data.buf)
 end, { desc = "Upload subtitles to VLC" })
 
+define_video_command("SrtVideoDisconnect", function(args, data)
+  set_buf_credentials(data.buf, nil, nil, nil)
+end, { desc = "Disconnect from VLC" })
+
+define_video_command("SrtVideoSetTime", function (args, data)
+  -- set time under cursor to current point in video
+  local subs, err = get_subs.parse(data.lines)
+  if err or not subs then
+    get_subs.print_err(err)
+    return
+  end
+  local sub_i = get_subs.find_subtitle(subs, data.line)
+
+  if not sub_i then
+    print("Not in a subtitle")
+    return
+  end
+
+  local sub = subs[sub_i]
+  if data.line ~= sub.line_pos + 1 then
+    print("Not on duration line")
+    return
+  end
+
+  local side
+
+  if data.col >= 0 and data.col <= 12 then
+    side = "start"
+  elseif data.col >= 16 and data.col <= 28 then
+    side = "end"
+  else
+    print("Hover over start or end time to shift")
+    return
+  end
+
+  get_status(data.credentials, nil, function(xml)
+    local new_ms = get_pit(xml)
+    if new_ms < 0 then
+      print("Error getting position")
+      return
+    end
+    if side == "start" then
+      local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
+      local new_start = subtitle.make_dur_ms(new_ms)
+      vim.schedule(function()
+        vim.api.nvim_buf_set_lines(
+          data.buf,
+          sub.line_pos,
+          sub.line_pos + 1,
+          false,
+          { new_start .. last_end }
+        )
+      end)
+    else
+      local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
+      local new_end = subtitle.make_dur_ms(new_ms)
+      vim.schedule(function()
+        vim.api.nvim_buf_set_lines(
+          data.buf,
+          sub.line_pos,
+          sub.line_pos + 1,
+          false,
+          { first_start .. new_end }
+        )
+      end)
+    end
+  end)
+
+end, { desc = "Set start or end of a subtitle to the current time in the video" })
 
 function M.notify_update(buf)
   return upload_subtitle(buf)
