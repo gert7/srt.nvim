@@ -17,14 +17,15 @@ local defaults = {
   overlap_warning = true,
   cps = false,
   cps_warning = true,
-  tackle_enabled = true,
+  tack_enabled = true,
   min_pause = 100,
   min_duration = 1000,
   max_duration = -1,
-  tackle = ".",
-  tackle_middle = " ",
+  tack = ".",
+  tack_middle = " ",
   max_length = 40,
   max_length_sub = -1,
+  max_lines = -1,
   max_cps = 21,
   extra_spaces = 0,
   -- modes:
@@ -43,6 +44,7 @@ local defaults = {
   -- "on_save" - when the buffer is saved
   -- "on_change" - when the buffer is changed
   sync_mode = c.SYNC_MODE_SAVE,
+  rules_by_line_count = {},
 }
 
 local config = vim.tbl_deep_extend("keep", defaults, {})

@@ -3,7 +3,7 @@ local vim = vim
 local M = {}
 
 local subtitle = require("srtnvim.subtitle")
-local config = require("srtnvim.config")
+local get_config = require("srtnvim.config")
 
 local State = {
   index = 1,
@@ -31,9 +31,9 @@ end
 local matcher = "(%d%d):(%d%d):(%d%d),(%d%d%d)%s%-%->%s(%d%d):(%d%d):(%d%d),(%d%d%d)"
 
 function M.preproduce_pause_lines(config)
-  local tl = config.tackle_left or config.tackle
-  local tr = config.tackle_right or config.tackle
-  local tm = config.tackle_middle
+  local tl = config.tack_left or config.tack
+  local tr = config.tack_right or config.tack
+  local tm = config.tack_middle
   local pause_lines = {}
 
   local extra_spaces = string.rep(" ", config.extra_spaces)
@@ -58,7 +58,7 @@ function M.preproduce_pause_lines(config)
 end
 
 local function get_pause_line(pause, config, pause_lines)
-  if not config.tackle_enabled then
+  if not config.tack_enabled then
     return pause_lines[6]
   end
   if pause < config.min_pause then
@@ -77,6 +77,7 @@ end
 local function remove_tags(s)
   return s:gsub("<[^>]+>", "")
 end
+
 
 function M.annotate_subs(buf, config, data, has_groups)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -99,6 +100,7 @@ function M.annotate_subs(buf, config, data, has_groups)
   local cur_end = 0
 
   local line_count = 0
+  local line_lengths = {}
   local last_timing = 0
   local total_length = 0
   local last_timing_k = 0
@@ -189,9 +191,7 @@ function M.annotate_subs(buf, config, data, has_groups)
         local len = vim.fn.strchars(clean_s)
         total_length = total_length + len
         line_count = line_count + 1
-        if config.max_length ~= -1 and len > config.max_length then
-          add_diagnostic(k - 1, "Line is too long", 0)
-        end
+        table.insert(line_lengths, len)
       else -- subtitle termination
         local dbz = last_timing == 0
         local cps = 0
@@ -201,12 +201,43 @@ function M.annotate_subs(buf, config, data, has_groups)
           cps = math.huge
         end
 
-        if config.min_duration ~= -1 and last_timing < config.min_duration then
-          add_diagnostic(last_timing_k - 1, "Duration is too short", 0)
+        local cfg_mask, _ = get_config.get_by_line_count(config, line_count)
+
+        -- minimum duration per subtitle
+        if cfg_mask.min_duration ~= -1 and last_timing < cfg_mask.min_duration then
+          add_diagnostic(
+            last_timing_k - 1,
+            "Duration is too short (<" .. cfg_mask.min_duration .. "ms)", 0)
         end
 
-        if config.max_length_sub ~= -1 and total_length > config.max_length_sub then
-          add_diagnostic(last_timing_k - 1, "Subtitle has too many characters", 0)
+        -- maximum duration per subtitle
+        if cfg_mask.max_duration ~= -1 and last_timing > cfg_mask.max_duration then
+          add_diagnostic(
+            last_timing_k - 1,
+            "Duration is too long (>" .. cfg_mask.max_duration .. "ms)", 0)
+        end
+
+        -- maximum length per line
+        for i, len in ipairs(line_lengths) do
+          if cfg_mask.max_length ~= -1 and len > cfg_mask.max_length then
+            add_diagnostic(
+              last_timing_k - 1 + i,
+              "Line is too long (>" .. cfg_mask.max_length .. ")", 0)
+          end
+        end
+
+        -- maximum length per subtitle
+        if cfg_mask.max_length_sub ~= -1 and total_length > cfg_mask.max_length_sub then
+          add_diagnostic(
+            last_timing_k - 1,
+            "Subtitle has too many characters (>" .. cfg_mask.max_length_sub .. ")", 0)
+        end
+
+        -- maximum number of lines
+        if config.max_lines ~= -1 and line_count > config.max_lines then
+          add_diagnostic(
+            last_timing_k - 1,
+            "Subtitle has too many lines (>" .. config.max_lines .. ")", 0)
         end
 
         local dur_bar = ""
@@ -232,6 +263,7 @@ function M.annotate_subs(buf, config, data, has_groups)
         state = State.index
         line_count = 0
         total_length = 0
+        line_lengths = {}
       end
     end
   end
@@ -344,7 +376,7 @@ end
 function M.get_data(buf_i)
   local buf = buf_i or vim.api.nvim_get_current_buf()
   return {
-    config = config.get_config(),
+    config = get_config.get_config(),
     buf = buf,
     line = vim.api.nvim_win_get_cursor(0)[1],
     col = vim.api.nvim_win_get_cursor(0)[2],
