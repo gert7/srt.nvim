@@ -92,6 +92,7 @@ function M.annotate_subs(buf, config, data, has_groups)
   local state = State.index
 
   local diagnostics = {}
+  local ext_marks = {}
 
   local last_end = 0
   local cur_start = 0
@@ -116,6 +117,10 @@ function M.annotate_subs(buf, config, data, has_groups)
       col = col or 0,
       message = message
     })
+  end
+
+  local function add_ext_mark(row, col, opts)
+    table.insert(ext_marks, { row, col, opts })
   end
 
   for k, v in ipairs(lines) do
@@ -168,7 +173,7 @@ function M.annotate_subs(buf, config, data, has_groups)
           },
           virt_text_pos = 'eol'
         }
-        vim.api.nvim_buf_set_extmark(buf, nsid, pauseline, 0, opts)
+        add_ext_mark(pauseline, 0, opts)
 
         if config.overlap_warning and pause < 0 then
           add_diagnostic(pauseline, "Subtitle overlaps with previous subtitle", 0)
@@ -212,7 +217,7 @@ function M.annotate_subs(buf, config, data, has_groups)
 
         if cps < math.huge and
             (config.cps or
-            (config.cps_warning and cps > config.max_cps)) then
+              (config.cps_warning and cps > config.max_cps)) then
           local percent = cps / config.max_cps * 100
           dur_bar = dur_bar .. string.format(cps_mark, percent)
         end
@@ -222,7 +227,7 @@ function M.annotate_subs(buf, config, data, has_groups)
           virt_text = { { dur_bar, "Srt" } },
           virt_text_pos = 'eol'
         }
-        vim.api.nvim_buf_set_extmark(buf, nsid, last_timing_k - 1, 0, opts)
+        add_ext_mark(last_timing_k - 1, 0, opts)
 
         state = State.index
         line_count = 0
@@ -236,6 +241,10 @@ function M.annotate_subs(buf, config, data, has_groups)
   end
 
   vim.diagnostic.set(nsid, buf, diagnostics, {})
+
+  for _, v in ipairs(ext_marks) do
+    vim.api.nvim_buf_set_extmark(buf, nsid, v[1], v[2], v[3])
+  end
 end
 
 function M.parse(lines)
