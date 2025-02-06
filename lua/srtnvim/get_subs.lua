@@ -179,7 +179,15 @@ function M.annotate_subs(buf, config, data, has_groups)
       state = State.subtitle
     elseif state == State.subtitle then
       v = v:gsub("^%s*(.-)%s*$", "%1")
-      if v == "" then
+      if v ~= "" then
+        local clean_s = remove_tags(v)
+        local len = vim.fn.strchars(clean_s)
+        total_length = total_length + len
+        line_count = line_count + 1
+        if config.max_length ~= -1 and len > config.max_length then
+          add_diagnostic(k - 1, "Line is too long", 0)
+        end
+      else -- subtitle termination
         local dbz = last_timing == 0
         local cps = 0
         if not dbz then
@@ -219,14 +227,6 @@ function M.annotate_subs(buf, config, data, has_groups)
         state = State.index
         line_count = 0
         total_length = 0
-      else
-        local clean_s = remove_tags(v)
-        local len = vim.fn.strchars(clean_s)
-        total_length = total_length + len
-        line_count = line_count + 1
-        if config.max_length ~= -1 and len > config.max_length then
-          add_diagnostic(k - 1, "Line is too long", 0)
-        end
       end
     end
   end
