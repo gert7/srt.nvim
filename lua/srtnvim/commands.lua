@@ -604,7 +604,7 @@ define_command_subtitle("SrtEnforce", function (args, data, subs, sub_i)
       return
     end
     if new_ms > sub_next.end_ms then
-      print("Would shrink previous subtitle beyond end time")
+      print("Would shrink next subtitle beyond end time")
       return
     end
 
@@ -618,6 +618,46 @@ define_command_subtitle("SrtEnforce", function (args, data, subs, sub_i)
     )
   end
 end, { desc = "Enforce start or end of subtitle on adjacent subtitle, with min_pause" })
+
+
+define_command_subtitle("SrtSwap", function(args, data, subs, sub_i)
+  if sub_i == #subs and #subs >= 2 then
+    sub_i = sub_i - 1
+  elseif #subs < 2 then
+    print("Not enough subtitles to swap anything")
+    return
+  end
+
+  local sub1 = subs[sub_i]
+  local line1_from = sub1.line_pos + 2
+  local line1_to = line1_from + #sub1.line_lengths
+
+  local text1 = {}
+  for i = line1_from, line1_to - 1 do
+    table.insert(text1, data.lines[i])
+  end
+  table.insert(text1, "")
+
+  local sub2 = subs[sub_i + 1]
+  local line2_from = sub2.line_pos + 2
+  local line2_to = line2_from + #sub2.line_lengths
+
+  local text2 = {}
+  for i = line2_from, line2_to - 1 do
+    table.insert(text2, data.lines[i])
+  end
+  table.insert(text2, "")
+  
+  local start1 = sub1.line_pos + 1
+  local start2 = sub2.line_pos + 1
+  local finish1 = sub1.line_pos + #sub1.line_lengths + 2
+  local finish2 = sub2.line_pos + #sub2.line_lengths + 2
+
+  local diff = #sub2.line_lengths - #sub1.line_lengths
+
+  vim.api.nvim_buf_set_lines(data.buf, start1, finish1, false, text2)
+  vim.api.nvim_buf_set_lines(data.buf, start2 + diff, finish2 + diff, false, text1)
+end, { desc = "Swap this subtitle with the one below it" })
 
 
 return M
