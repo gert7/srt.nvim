@@ -34,6 +34,9 @@ position)
   backward in time until min_pause is reached
   - On the end time, the start time of the next subtitle will be pushed
   forward in time until min_pause is reached
+- `SrtShiftTimeStrict` - shift the beginning or end time of a duration and
+enforce it on adjacent subtitles. A combination of `SrtShiftTime` and
+`SrtEnforce`
 
 ### Video commands
 
@@ -49,6 +52,8 @@ interfaces, and the password can be set from Main interfaces -> Lua
 - `SrtVideoJump` - seek the video in the player to the subtitle under the cursor
 - `SrtVideoTrack` - automatically move the cursor to the current subtitle when
 the video is seeking or playing
+- `SrtSetVideoTime` - set start or end of a subtitle to the current time in the video (based on
+cursor position)
 
 ### Window sync
 
@@ -161,11 +166,11 @@ vim.api.nvim_create_autocmd("FileType", {
     end, {silent = true})
 
     vim.keymap.set("n", "<C-j>", function()
-      vim.cmd("SrtShiftTime -100")
+      vim.cmd("SrtShiftTimeStrict -100")
     end, {silent = true})
 
     vim.keymap.set("n", "<C-k>", function()
-      vim.cmd("SrtShiftTime 100")
+      vim.cmd("SrtShiftTimeStrict 100")
     end, {silent = true})
   end,
 })
