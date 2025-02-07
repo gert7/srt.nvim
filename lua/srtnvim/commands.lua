@@ -648,7 +648,6 @@ define_command_subtitle("SrtShiftTimeStrict", function(args, data, subs, sub_i)
       local sub_prev = subs[sub_i - 1]
 
       local bleed = sub_prev.end_ms + data.config.min_pause
-      print("new_ms: " .. new_ms .. ", bleed: " .. bleed)
 
       if new_ms < bleed then
         local new_prev_ms = new_ms - data.config.min_pause
@@ -681,7 +680,6 @@ define_command_subtitle("SrtShiftTimeStrict", function(args, data, subs, sub_i)
       local sub_next = subs[sub_i + 1]
 
       local bleed = sub_next.start_ms - data.config.min_pause
-      print("new_ms: " .. new_ms .. ", bleed: " .. bleed)
 
       if new_ms > bleed then
         local new_next_ms = new_ms + data.config.min_pause
