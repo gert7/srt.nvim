@@ -17,6 +17,7 @@ Edit SubRip subtitles in NeoVim.
 
 ### Commands
 
+- `SrtJump` - jump cursor to subtitle by index
 - `SrtMerge` - merge subtitles, with optional range selection
 - `SrtSplit` - split subtitles into two
 - `SrtSort` - sort subtitles by start time
