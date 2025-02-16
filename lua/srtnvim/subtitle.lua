@@ -18,7 +18,7 @@ function Subtitle.create(line_pos, index, length_ms, line_lengths, start_ms, end
     length_ms = length_ms,
     line_lengths = line_lengths
   }
-  setmetatable(t, { __index = Subtitle })
+  -- setmetatable(t, { __index = Subtitle })
   return t
 end
 

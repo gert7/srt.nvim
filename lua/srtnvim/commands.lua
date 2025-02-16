@@ -127,7 +127,7 @@ define_command_subs("SrtMerge", function(args, data, subs)
     local err
     subs, err = get_subs.parse(data.lines)
     if err then
-      print("Unexpected error on line " .. err[2])
+      print("Unexpected error on line " .. err[2] .. ": " .. err[1])
       return
     end
     sub_merge(data.buf, subs, sub_first)
@@ -450,9 +450,11 @@ define_command_subtitle("SrtImport", function(args_in, data, subs, sub_i)
     return
   end
 
+  local end_offset = sub.end_ms + offset
+
   for _, new_sub in ipairs(new_subs) do
-    local new_start = new_sub.start_ms + sub.end_ms + offset
-    local new_end = new_sub.end_ms + sub.end_ms + offset
+    local new_start = new_sub.start_ms + end_offset
+    local new_end = new_sub.end_ms + end_offset
     new_lines[new_sub.line_pos + 1] = subtitle.make_dur_full_ms(new_start, new_end)
   end
 

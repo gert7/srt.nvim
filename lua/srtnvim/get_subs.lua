@@ -78,11 +78,10 @@ local function remove_tags(s)
   return s:gsub("<[^>]+>", "")
 end
 
+local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 
 function M.annotate_subs(buf, config, data, has_groups)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-
-  local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 
   vim.api.nvim_buf_clear_namespace(buf, nsid, 0, -1)
 
@@ -129,7 +128,7 @@ function M.annotate_subs(buf, config, data, has_groups)
     if state == State.index and v ~= "" then
       local n = tonumber(v)
       if not n then
-        add_diagnostic(k, "Error reading subtitle index!", 0)
+        add_diagnostic(k - 1, "Error reading subtitle index!", 0)
         vim.diagnostic.set(nsid, buf, diagnostics, {})
         return
       end
@@ -165,7 +164,7 @@ function M.annotate_subs(buf, config, data, has_groups)
 
       local pauseline = k - 3
 
-      if config.pause and pauseline > 0 then
+      if config.pause and pauseline > 0 and last_index > 1 then
         local opts = {
           id = pauseline,
           virt_text = {
@@ -179,7 +178,7 @@ function M.annotate_subs(buf, config, data, has_groups)
 
         if config.overlap_warning and pause < 0 then
           add_diagnostic(pauseline, "Subtitle overlaps with previous subtitle", 0)
-        elseif pause < config.min_pause then
+        elseif pause < config.min_pause and last_index > 1 then
           add_diagnostic(pauseline, "Pause is too short", 0)
         end
       end
@@ -289,6 +288,8 @@ function M.parse(lines)
   for k, v in ipairs(lines) do
     if state == State.index then
       if v == "" then
+        -- TODO: check this out with lines before index 1
+        -- we could add a check here if we're over the first
         table.insert(next_subtitle.line_lengths, 0)
       else
         local n = tonumber(v)
