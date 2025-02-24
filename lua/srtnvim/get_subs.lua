@@ -217,11 +217,13 @@ function M.annotate_subs(buf, config, data, has_groups)
         end
 
         -- maximum length per line
-        for i, len in ipairs(line_lengths) do
-          if cfg_mask.max_length ~= -1 and len > cfg_mask.max_length then
-            add_diagnostic(
-              last_timing_k - 1 + i,
-              "Line is too long (>" .. cfg_mask.max_length .. ")", 0)
+        if cfg_mask.max_length ~= -1 then
+          for i, len in ipairs(line_lengths) do
+            if len > cfg_mask.max_length then
+              add_diagnostic(
+                last_timing_k - 1 + i,
+                "Line is too long (>" .. cfg_mask.max_length .. ")", 0)
+            end
           end
         end
 

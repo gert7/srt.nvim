@@ -752,12 +752,12 @@ define_command_subtitle("SrtSwap", function(args, data, subs, sub_i)
 end, { desc = "Swap this subtitle with the one below it" })
 
 
-define_command_subtitle("SrtJump", function(args, data, subs, sub_i)
+define_command_subs("SrtJump", function(args, data, subs)
   local arg = args.args
 
   local arg_n = tonumber(arg)
   if not arg_n then
-    print("Can't understand line number")
+    print("Can't understand index number")
     return
   end
 
