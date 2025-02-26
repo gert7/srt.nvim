@@ -252,6 +252,13 @@ function M.annotate_subs(buf, config, data, has_groups)
               (config.cps_warning and cps > config.max_cps)) then
           local percent = cps / config.max_cps * 100
           dur_bar = dur_bar .. string.format(cps_mark, percent)
+
+          if (config.cps_diagnostic and cps > config.max_cps) then
+            add_diagnostic(
+              last_timing_k - 2,
+              "Subtitle has too many characters per second", 0
+            )
+          end
         end
 
         local opts = {

@@ -17,6 +17,7 @@ local defaults = {
   overlap_warning = true,
   cps = false,
   cps_warning = true,
+  cps_diagnostic = false,
   tack_enabled = true,
   min_pause = 100,
   min_duration = 1000,

@@ -95,6 +95,7 @@ Plugin 'gert7/srt.nvim', { 'branch': 'main' }
 | overlap_warning      | true      | Warn if subtitle timings overlap                   |
 | cps                  | false     | Always show characters per second %                |
 | cps_warning          | true      | Show characters per second % if over CPS           |
+| cps_diagnostic       | false     | Treat being over-CPS as an error                   |
 | tack_enabled         | true      | Show pause indicators between subtitles            |
 | min_pause            | 100       | Minimum pause between subtitles                    |
 | min_duration*        | 1000      | Minimum duration for one subtitle                  |
