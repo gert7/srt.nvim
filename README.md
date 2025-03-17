@@ -168,11 +168,11 @@ vim.api.nvim_create_autocmd("FileType", {
     end, {silent = true})
 
     vim.keymap.set("n", "<C-j>", function()
-      vim.cmd("SrtShiftTimeStrict -100")
+      vim.cmd("SrtShiftTime -100")
     end, {silent = true})
 
     vim.keymap.set("n", "<C-k>", function()
-      vim.cmd("SrtShiftTimeStrict 100")
+      vim.cmd("SrtShiftTime 100")
     end, {silent = true})
   end,
 })
