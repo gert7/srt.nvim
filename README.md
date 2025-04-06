@@ -118,6 +118,7 @@ Plugin 'gert7/srt.nvim', { 'branch': 'main' }
 | sync_mode            | "on_save" | When to upload subtitles to VLC                    |
 | sync_mode_buf        | N/A       | Override for when to sync when using SrtSyncWindow |
 | upload_on_video_jump | true      | Upload subtitles to video on SrtVideoJump          |
+| add_at_seek          | true      | SrtAdd will add new subtitle at video seek point   |
 
 Options marked with * can also be specified under `rules_by_line_count`
 

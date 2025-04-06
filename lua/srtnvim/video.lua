@@ -429,4 +429,16 @@ function M.notify_update(buf)
   return upload_subtitle(buf)
 end
 
+function M.get_pit(buf, callback)
+  local data = get_data(buf)
+  if data.credentials then
+    get_status(data.credentials, nil, function (xml)
+      local pit = get_pit(xml)
+      callback(pit)
+    end)
+  else
+    callback(nil)
+  end
+end
+
 return M

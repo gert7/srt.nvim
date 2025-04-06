@@ -3,6 +3,7 @@ local c = require("srtnvim.constants")
 local config = require("srtnvim.config")
 local get_subs = require("srtnvim.get_subs")
 local subtitle = require("srtnvim.subtitle")
+local video = require("srtnvim.video")
 
 local M = {}
 
@@ -481,22 +482,32 @@ define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
     end
   end
 
-  local sub = subs[sub_i]
-  local new_line = sub.line_pos + 1 + #sub.line_lengths
-  local new_start = sub.end_ms + offset
-  local new_end = new_start + data.config.min_duration
+  video.get_pit(data.buf, function(pit)
+    local sub = subs[sub_i]
+    local new_line = sub.line_pos + 1 + #sub.line_lengths
+    local new_start = sub.end_ms
+    if data.config.add_at_seek and pit then
+      new_start = pit
+    end
+    new_start = new_start + offset
+    local new_end = new_start + data.config.min_duration
 
-  local new_header = {
-    "",
-    tostring(sub.index + 1),
-    subtitle.make_dur_full_ms(new_start, new_end)
-  }
+    local new_header = {
+      "",
+      tostring(sub.index + 1),
+      subtitle.make_dur_full_ms(new_start, new_end)
+    }
 
-  vim.api.nvim_buf_set_lines(data.buf, new_line, new_line, false, new_header)
+    vim.schedule(function()
+      vim.api.nvim_buf_set_lines(data.buf, new_line, new_line, false, new_header)
 
-  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(lines)
-  sub_sort(data.buf, lines, subs)
+      local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+      subs, _ = get_subs.parse(lines)
+      sub_sort(data.buf, lines, subs)
+
+      print("Added new subtitle at " .. subtitle.make_dur_ms(new_start))
+    end)
+  end)
 end, { desc = "Add a subtitle after the current one with optional offset", nargs = "?" })
 
 
