@@ -117,6 +117,7 @@ Plugin 'gert7/srt.nvim', { 'branch': 'main' }
 | seek_while_paused    | true      | Seek if video is paused for SrtVideoTrack          |
 | sync_mode            | "on_save" | When to upload subtitles to VLC                    |
 | sync_mode_buf        | N/A       | Override for when to sync when using SrtSyncWindow |
+| upload_on_video_jump | true      | Upload subtitles to video on SrtVideoJump          |
 
 Options marked with * can also be specified under `rules_by_line_count`
 

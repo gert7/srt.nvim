@@ -45,6 +45,7 @@ local defaults = {
   -- "on_save" - when the buffer is saved
   -- "on_change" - when the buffer is changed
   sync_mode = c.SYNC_MODE_SAVE,
+  upload_on_video_jump = true,
   rules_by_line_count = {},
 }
 

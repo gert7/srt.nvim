@@ -497,7 +497,6 @@ define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
   local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
   subs, _ = get_subs.parse(lines)
   sub_sort(data.buf, lines, subs)
-  print("Subtitle added, subtitles sorted")
 end, { desc = "Add a subtitle after the current one with optional offset", nargs = "?" })
 
 

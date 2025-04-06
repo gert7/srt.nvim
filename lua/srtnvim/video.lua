@@ -257,6 +257,11 @@ define_video_command("SrtVideoJump", function(args, data)
 
   local seconds = math.floor(sub.start_ms / 1000)
 
+  if data.config.upload_on_video_jump then
+    -- print("Uploaded")
+    upload_subtitle(data.buf)
+  end
+
   get_status(data.credentials, "seek&val=" .. seconds, function()
     print("Jumped to " .. seconds .. " seconds")
   end)
