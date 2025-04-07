@@ -89,12 +89,11 @@ local function get_status_full(ip, port, password, req, callback)
 
     local auth = base64.encode(":" .. password)
     local req_full = "GET /requests/status.xml" .. command .. " HTTP/1.1\n"
-    client:write(req_full)
-    client:write("Host: " .. ip .. ":" .. port .. "\n")
-    client:write("Authorization: Basic " .. auth .. "\n")
-    client:write("User-Agent: curl/8.11.1\n")
-    client:write("Accept: */*\n")
-    client:write("\n")
+    client:write(req_full
+      .. "Host: " .. ip .. ":" .. port .. "\n"
+      .. "Authorization: Basic " .. auth .. "\n"
+      .. "User-Agent: curl/8.11.1\n"
+      .. "Accept: */*\n\n")
     local result = ""
     client:read_start(function(err, chunk)
       if err then
@@ -361,7 +360,7 @@ define_video_command("SrtVideoDisconnect", function(args, data)
   set_buf_credentials(data.buf, nil, nil, nil)
 end, { desc = "Disconnect from VLC" })
 
-define_video_command("SrtVideoSetTime", function (args, data)
+define_video_command("SrtVideoSetTime", function(args, data)
   -- set time under cursor to current point in video
   local subs, err = get_subs.parse(data.lines)
   if err or not subs then
@@ -422,7 +421,6 @@ define_video_command("SrtVideoSetTime", function (args, data)
       end)
     end
   end)
-
 end, { desc = "Set start or end of a subtitle to the current time in the video" })
 
 function M.notify_update(buf)
@@ -432,7 +430,7 @@ end
 function M.get_pit(buf, callback)
   local data = get_data(buf)
   if data.credentials then
-    get_status(data.credentials, nil, function (xml)
+    get_status(data.credentials, nil, function(xml)
       local pit = get_pit(xml)
       callback(pit)
     end)
