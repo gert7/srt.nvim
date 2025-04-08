@@ -128,7 +128,7 @@ local function get_status(credentials, req, callback)
 end
 
 
-vim.api.nvim_create_user_command("SrtConnect", function(opts)
+local function video_connect(opts)
   local buf = vim.api.nvim_get_current_buf()
   local args = vim.split(opts.args, " ")
   local ip = "127.0.0.1"
@@ -157,7 +157,11 @@ vim.api.nvim_create_user_command("SrtConnect", function(opts)
       print("Subtitle track " .. track .. "set")
     end)
   end)
-end, { desc = "Connect to VLC", nargs = "+" })
+end
+
+vim.api.nvim_create_user_command("SrtConnect", video_connect, { desc = "Connect to VLC", nargs = "+" })
+vim.api.nvim_create_user_command("SrtVideoConnect", video_connect, { desc = "Connect to VLC", nargs = "+" })
+
 
 local function upload_subtitle(buf)
   util.write_buffer_to_file(buf, "/tmp/srtnvim.srt")
@@ -179,7 +183,6 @@ local function upload_subtitle(buf)
     end)
   return true
 end
-
 
 local function get_data(buf)
   return {
