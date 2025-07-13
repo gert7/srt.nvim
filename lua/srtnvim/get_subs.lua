@@ -75,7 +75,7 @@ local function get_pause_line(pause, config, pause_lines)
 end
 
 local function remove_tags(s)
-  return s:gsub("<[^>]+>", "")
+  return s:gsub("<[^>]+>", ""):gsub("{[^}]+}", "")
 end
 
 local nsid = vim.api.nvim_create_namespace("srtsubdiag")
