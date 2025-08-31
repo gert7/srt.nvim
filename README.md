@@ -59,7 +59,7 @@ cursor position)
 ### Window sync
 
 srt.nvim can also synchronize two windows marked with the `SrtSyncWindow`
-command, moving the cursor and centering all other marked windows to the
+command, moving the cursor and centering all marked windows to the
 subtitle that best matches with the current time. This is useful for keeping a
 translation open in another window.
 
@@ -117,6 +117,7 @@ Plugin 'gert7/srt.nvim', { 'branch': 'main' }
 | seek_while_paused    | true      | Seek if video is paused for SrtVideoTrack          |
 | sync_mode            | "on_save" | When to upload subtitles to VLC                    |
 | sync_mode_buf        | N/A       | Override for when to sync when using SrtSyncWindow |
+| sync_jump_cur_window | true      | Jump cursor in all windows when using SrtSyncWindow|
 | upload_on_video_jump | true      | Upload subtitles to video on SrtVideoJump          |
 | add_at_seek          | true      | SrtAdd will add new subtitle at video seek point   |
 

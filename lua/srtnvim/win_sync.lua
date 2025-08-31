@@ -1,5 +1,6 @@
 local vim = vim
 local commands = require('srtnvim.commands')
+local get_config = require("srtnvim.config")
 local get_subs = require('srtnvim.get_subs')
 
 local M = {}
@@ -7,6 +8,8 @@ local M = {}
 local sync_wins = {}
 
 function M.notify_update()
+  local config = get_config.get_config()
+
   local cur_win = vim.api.nvim_get_current_win()
   if not sync_wins[cur_win] then
     return
@@ -56,6 +59,10 @@ function M.notify_update()
         vim.api.nvim_set_current_win(orig_win)
       end
     end
+  end
+
+  if config.sync_jump_cur_window then
+    vim.cmd("normal! zz")
   end
 end
 
