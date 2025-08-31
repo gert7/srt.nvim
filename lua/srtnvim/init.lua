@@ -113,8 +113,8 @@ vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "BufEnter" }, {
     get_subs.annotate_subs(ev.buf, config, data, false)
     if config.sync_mode == c.SYNC_MODE_CHANGE then
       video.notify_update(ev.buf)
-      notify_win_sync(config, c.SYNC_MODE_CHANGE)
     end
+    notify_win_sync(config, c.SYNC_MODE_CHANGE)
   end
 })
 
@@ -124,8 +124,19 @@ vim.api.nvim_create_autocmd({ "BufWritePost" }, {
   callback = function(ev)
     if config.sync_mode == c.SYNC_MODE_SAVE then
       video.notify_update(ev.buf)
-      notify_win_sync(config, c.SYNC_MODE_SAVE)
     end
+    notify_win_sync(config, c.SYNC_MODE_SAVE)
+  end
+})
+
+vim.api.nvim_create_autocmd({ "CursorMoved" }, {
+  group = augroup,
+  pattern = { "*.srt" },
+  callback = function(ev)
+    if config.sync_mode == c.SYNC_MODE_MOVE then
+      video.notify_update(ev.buf)
+    end
+    notify_win_sync(config, c.SYNC_MODE_MOVE)
   end
 })
 

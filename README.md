@@ -131,8 +131,11 @@ The options for `split_mode` are:
 
 The options for `sync_mode` are:
 - "never" - never upload to VLC automatically (use `SrtVideoUpload` instead)
-- "on_save" - upload after save
-- "on_change" - upload after change
+- "on_save" - upload/sync after save
+- "on_change" - upload/sync after change
+- "on_move" - upload/sync after moving the cursor
+
+`sync_mode_buf` allows you to set the sync mode separately from the VLC upload mode.
 
 ### Example configuration
 
