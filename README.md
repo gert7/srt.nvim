@@ -61,7 +61,9 @@ cursor position)
 srt.nvim can also synchronize two windows marked with the `SrtSyncWindow`
 command, moving the cursor and centering all marked windows to the
 subtitle that best matches with the current time. This is useful for keeping a
-translation open in another window.
+translation open in another window. You can also set `sync_jump_cur_window` to
+`false` to only move the cursor in the other windows, but this is not
+recommended.
 
 ## Installation 
 
