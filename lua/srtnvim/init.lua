@@ -73,7 +73,8 @@ function M.setup(user_opts)
 
   if config.sync_mode ~= c.SYNC_MODE_NEVER and
     config.sync_mode ~= c.SYNC_MODE_SAVE and
-    config.sync_mode ~= c.SYNC_MODE_CHANGE then
+    config.sync_mode ~= c.SYNC_MODE_CHANGE and
+    config.sync_mode ~= c.SYNC_MODE_MOVE then
       print("srt.nvim configuration error: Unknown sync mode '" .. config.sync_mode .. "'")
     end
 end
