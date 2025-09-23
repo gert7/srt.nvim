@@ -30,6 +30,9 @@ end
 
 local matcher = "(%d%d):(%d%d):(%d%d),(%d%d%d)%s%-%->%s(%d%d):(%d%d):(%d%d),(%d%d%d)"
 
+---@param config Config
+---@return string[]
+---@return string
 function M.preproduce_pause_lines(config)
   local tl = config.tack_left or config.tack
   local tr = config.tack_right or config.tack
@@ -80,6 +83,10 @@ end
 
 local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 
+---@param buf number
+---@param config Config
+---@param data any
+---@param has_groups? boolean
 function M.annotate_subs(buf, config, data, has_groups)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 
@@ -287,6 +294,9 @@ function M.annotate_subs(buf, config, data, has_groups)
   end
 end
 
+---@param lines string[]
+---@return Subtitle[] | nil
+---@return [string, integer] | nil
 function M.parse(lines)
   local state = State.index
 
@@ -294,14 +304,14 @@ function M.parse(lines)
 
   local next_subtitle = subtitle.Subtitle.blank()
 
-  for k, v in ipairs(lines) do
+  for k, line in ipairs(lines) do
     if state == State.index then
-      if v == "" then
+      if line == "" then
         -- TODO: check this out with lines before index 1
         -- we could add a check here if we're over the first
         table.insert(next_subtitle.line_lengths, 0)
       else
-        local n = tonumber(v)
+        local n = tonumber(line)
         if not n then
           return nil, { "Error reading subtitle index!", k }
         end
@@ -310,7 +320,7 @@ function M.parse(lines)
         state = State.timing
       end
     elseif state == State.timing then
-      local f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi = string.gmatch(v, matcher)()
+      local f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi = string.gmatch(line, matcher)()
       if not t_mi then
         return nil, { "Error reading duration!", k }
       end
@@ -322,13 +332,13 @@ function M.parse(lines)
 
       state = State.subtitle
     elseif state == State.subtitle then
-      v = v:gsub("^%s*(.-)%s*$", "%1")
-      if v == "" then
+      line = line:gsub("^%s*(.-)%s*$", "%1")
+      if line == "" then
         table.insert(subtitles, next_subtitle)
         next_subtitle = subtitle.Subtitle.blank()
         state = State.index
       else
-        local clean_s = remove_tags(v)
+        local clean_s = remove_tags(line)
         table.insert(next_subtitle.line_lengths, clean_s:len())
       end
     end
@@ -341,10 +351,14 @@ function M.parse(lines)
   return subtitles, nil
 end
 
+---@param err [string, integer]
 function M.print_err(err)
   print("Error: " .. err[1] .. " on line " .. err[2])
 end
 
+---@param subs Subtitle[]
+---@param line integer
+---@return integer | nil
 function M.find_subtitle(subs, line)
   local low = 1
   local high = #subs
@@ -363,6 +377,9 @@ function M.find_subtitle(subs, line)
   end
 end
 
+---@param subs Subtitle[]
+---@param ms integer
+---@return integer | nil
 function M.find_subtitle_by_ms(subs, ms)
   local low = 1
   local high = #subs
@@ -383,6 +400,15 @@ function M.find_subtitle_by_ms(subs, ms)
   end
 end
 
+---@class Subdata
+---@field config Config
+---@field buf integer
+---@field line integer
+---@field col integer
+---@field lines string[]
+
+---@param buf_i? integer
+---@return Subdata
 function M.get_data(buf_i)
   local buf = buf_i or vim.api.nvim_get_current_buf()
   return {

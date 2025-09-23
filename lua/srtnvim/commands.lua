@@ -16,12 +16,12 @@ local function sum_array(t, s, f)
 end
 
 
---- Add a number to all indices in a table of subtitles
--- @param lines table of lines from the .srt file
--- @param subs table of subtitles
--- @param start index of subtitle to start from
--- @param n number to add to the indices
--- @return modified table of lines to be placed into the buffer
+--- Arithmetic add a number to all indices in a table of subtitles
+---@param lines string[] array of lines from the .srt file
+---@param subs Subtitle[] array of subtitles
+---@param start integer index of subtitle to start from
+---@param n integer to add to the indices
+---@return table lines modified table of lines to be placed into the buffer
 local function add_to_indices(lines, subs, start, n)
   local offset = subs[start].line_pos - 1
   for i = start, #subs do
@@ -60,6 +60,21 @@ local function sub_merge(buf, subs, sub_i)
 end
 
 
+---@class NvimCommandOptions
+---@field desc string
+---@field range? boolean
+---@field nargs? integer | string
+---@field complete? function | string
+
+---@class NvimCommandArgs
+---@field line1 integer
+---@field line2 integer
+---@field args string
+
+---@param name string
+---@param func fun(args: NvimCommandArgs, data: Subdata)
+---@param options NvimCommandOptions
+---@return nil
 local function define_command(name, func, options)
   local command = function(args)
     func(args, get_subs.get_data())
@@ -68,6 +83,10 @@ local function define_command(name, func, options)
 end
 
 
+---@param name string
+---@param func fun(args: NvimCommandArgs, data: Subdata, subs: Subtitle[])
+---@param options NvimCommandOptions
+---@return nil
 local function define_command_subs(name, func, options)
   local command = function(args)
     local data = get_subs.get_data()
@@ -76,12 +95,17 @@ local function define_command_subs(name, func, options)
       get_subs.print_err(err)
       return
     end
+    ---@cast subs Subtitle[]
     func(args, get_subs.get_data(), subs)
   end
   vim.api.nvim_create_user_command(name, command, options)
 end
 
 
+---@param name string
+---@param func fun(args: NvimCommandArgs, data: Subdata, subs: Subtitle[], sub_i: integer)
+---@param options NvimCommandOptions
+---@return nil
 local function define_command_subtitle(name, func, options)
   local command = function(args)
     local data = get_subs.get_data()
@@ -90,6 +114,7 @@ local function define_command_subtitle(name, func, options)
       get_subs.print_err(err)
       return
     end
+    ---@cast subs Subtitle[]
     local sub_i = get_subs.find_subtitle(subs, data.line)
 
     if not sub_i then
@@ -314,40 +339,40 @@ define_command_subs("SrtFixTimingAll", function(args, data, subs)
 end, { desc = "Fix timing for all subtitles" })
 
 
---- Parse a timing input
+--- Parse a timing input.
 -- Either in milliseconds
--- Or at least some partial form of hh:mm:ss,mss
--- @param input string to parse
-local function parse_time(string)
+-- or at least some partial form of hh:mm:ss,mss.
+---@param input string time string to parse
+local function parse_time(input)
   local mul = 1
-  if string:sub(1, 1) == "-" then
+  if input:sub(1, 1) == "-" then
     mul = -1
-    string = string:sub(2)
-  elseif string:sub(1, 1) == "+" then
-    string = string:sub(2)
+    input = input:sub(2)
+  elseif input:sub(1, 1) == "+" then
+    input = input:sub(2)
   end
 
-  local ms = tonumber(string)
+  local ms = tonumber(input)
   if ms then return ms * mul end
 
-  local h, m, s, mi = string:match("(%d+):(%d+):(%d+),(%d+)")
+  local h, m, s, mi = input:match("(%d+):(%d+):(%d+),(%d+)")
   if mi then
     return subtitle.to_ms(h, m, s, mi) * mul
   end
-  m, s, mi = string:match("(%d+):(%d+),(%d+)")
+  m, s, mi = input:match("(%d+):(%d+),(%d+)")
   if mi then
     return subtitle.to_ms(0, m, s, mi) * mul
   end
-  s, mi = string:match("(%d+),(%d+)")
+  s, mi = input:match("(%d+),(%d+)")
   if mi then
     return subtitle.to_ms(0, 0, s, mi) * mul
   end
 
-  h, m, s = string:match("(%d+):(%d+):(%d+)")
+  h, m, s = input:match("(%d+):(%d+):(%d+)")
   if s then
     return subtitle.to_ms(h, m, s, 0) * mul
   end
-  m, s = string:match("(%d+):(%d+)")
+  m, s = input:match("(%d+):(%d+)")
   if s then
     return subtitle.to_ms(0, m, s, 0) * mul
   end
@@ -385,7 +410,7 @@ define_command_subs("SrtShift", function(args, data, subs)
 
   local sub_last = sub_first
   if args.line1 ~= args.line2 then
-    sub_last = get_subs.find_subtitle(subs, args.line2)
+    sub_last = get_subs.find_subtitle(subs, args.line2) or sub_first
   end
 
   local shift = parse_time(args.args)
@@ -437,19 +462,21 @@ define_command_subtitle("SrtImport", function(args_in, data, subs, sub_i)
   local file = args[1]
   local offset = data.config.min_pause
   if #args > 1 then
-    offset = parse_time(args[2])
-    if not offset then
+    local p_offset = parse_time(args[2])
+    if not p_offset then
       print("Invalid time format")
       return
     end
+    offset = p_offset
   end
 
   local new_lines = vim.fn.readfile(file)
   local new_subs, err_new = get_subs.parse(new_lines)
-  if err_new or not new_subs then
+  if err_new then
     get_subs.print_err(err_new)
     return
   end
+  ---@cast new_subs Subtitle[]
 
   local end_offset = sub.end_ms + offset
 
@@ -475,11 +502,12 @@ define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
   local offset = data.config.min_pause
 
   if args.args ~= "" then
-    offset = parse_time(args.args)
-    if not offset then
+    local p_offset = parse_time(args.args)
+    if not p_offset then
       print("Invalid time format")
       return
     end
+    offset = p_offset
   end
 
   video.get_pit(data.buf, function(pit)
@@ -521,11 +549,12 @@ define_command_subtitle("SrtShiftTime", function(args, data, subs, sub_i)
   local offset = data.config.shift_ms
 
   if args.args ~= "" then
-    offset = parse_time(args.args)
-    if not offset then
+    local p_offset = parse_time(args.args)
+    if not p_offset then
       print("Invalid time format")
       return
     end
+    offset = p_offset
   end
 
   if data.col >= 0 and data.col <= 12 then
@@ -642,11 +671,12 @@ define_command_subtitle("SrtShiftTimeStrict", function(args, data, subs, sub_i)
   local offset = data.config.shift_ms
 
   if args.args ~= "" then
-    offset = parse_time(args.args)
-    if not offset then
+    local p_offset = parse_time(args.args)
+    if not p_offset then
       print("Invalid time format")
       return
     end
+    offset = p_offset
   end
 
   if data.col >= 0 and data.col <= 12 then

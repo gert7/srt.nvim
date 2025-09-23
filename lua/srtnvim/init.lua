@@ -8,6 +8,7 @@ local win_sync = require("srtnvim.win_sync")
 
 local M = {}
 
+---@type Config
 local defaults = {
   enabled = true,
   autofix_index = true,
@@ -53,12 +54,17 @@ local defaults = {
 
 local config = vim.tbl_deep_extend("keep", defaults, {})
 
+---@class SetupData
+---@field pause_lines? string[]
+
+---@type SetupData
 local data = {}
 
 local function get_config()
   return config
 end
 
+---@param user_opts Config
 function M.setup(user_opts)
   config = vim.tbl_deep_extend("force", defaults, user_opts or {})
   data = {

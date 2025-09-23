@@ -2,6 +2,8 @@ local vim = vim
 
 local M = {}
 
+---@param buffer_number integer
+---@param filename string
 function M.write_buffer_to_file(buffer_number, filename)
   local lines = vim.api.nvim_buf_get_lines(buffer_number, 0, -1, false)
 

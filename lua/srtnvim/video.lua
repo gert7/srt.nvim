@@ -44,6 +44,9 @@ local function get_length(xml)
 end
 
 --- Get the current position in milliseconds and the length of the video
+---@param xml string
+---@return number
+---@return number
 local function get_pit(xml)
   local pos = get_position(xml)
   local len = get_length(xml)
@@ -250,10 +253,11 @@ end, { desc = "Play the video" })
 
 define_video_command("SrtVideoJump", function(args, data)
   local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
+  if err then
     get_subs.print_err(err)
     return
   end
+  ---@cast subs Subtitle[]
   local sub_i = get_subs.find_subtitle(subs, data.line)
   local sub = subs[sub_i]
 
@@ -334,10 +338,11 @@ define_video_command("SrtVideoTrack", function(args, data)
       if cur_buf == data.buf and pit ~= -1 and (data.config.seek_while_paused or playing) then
         local new_data = get_data(data.buf)
         local subs, err = get_subs.parse(new_data.lines)
-        if err or not subs then
+        if err then
           get_subs.print_err(err)
           return
         end
+        ---@cast subs Subtitle[]
         local sub_i = get_subs.find_subtitle_by_ms(subs, pit)
         local sub = subs[sub_i]
         local line = sub.line_pos + 2
@@ -366,10 +371,11 @@ end, { desc = "Disconnect from VLC" })
 define_video_command("SrtVideoSetTime", function(args, data)
   -- set time under cursor to current point in video
   local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
+  if err then
     get_subs.print_err(err)
     return
   end
+  ---@cast subs Subtitle[]
   local sub_i = get_subs.find_subtitle(subs, data.line)
 
   if not sub_i then
@@ -426,10 +432,15 @@ define_video_command("SrtVideoSetTime", function(args, data)
   end)
 end, { desc = "Set start or end of a subtitle to the current time in the video" })
 
+---@param buf integer
+---@return boolean
 function M.notify_update(buf)
   return upload_subtitle(buf)
 end
 
+--- Return the point-in-time for the given connected buffer
+---@param buf integer
+---@param callback fun(pit: number | nil): nil
 function M.get_pit(buf, callback)
   local data = get_data(buf)
   if data.credentials then

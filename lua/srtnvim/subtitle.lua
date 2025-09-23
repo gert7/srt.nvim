@@ -1,5 +1,12 @@
 local M = {}
 
+---@class Subtitle
+---@field line_pos number
+---@field index number
+---@field start_ms number
+---@field end_ms number
+---@field length_ms number
+---@field line_lengths number[]
 local Subtitle = {
   line_pos = 0,
   index = 0,
@@ -24,10 +31,20 @@ end
 
 function Subtitle.blank() return Subtitle.create(0, 0, 0, {}, 0, 0) end
 
+---@param h integer
+---@param m integer
+---@param s integer
+---@param mi integer
+---@return integer
 function M.to_ms(h, m, s, mi)
   return mi + s * 1000 + m * 60000 + h * 3600000
 end
 
+---@param ms integer
+---@return integer
+---@return integer
+---@return integer
+---@return integer
 function M.from_ms(ms)
   local h = math.floor(ms / 3600000)
   ms = ms - h * 3600000
@@ -38,32 +55,57 @@ function M.from_ms(ms)
   return h, m, s, ms
 end
 
+---@param h integer
+---@param m integer
+---@param s integer
+---@param mi integer
+---@return string
 function M.make_dur(h, m, s, mi)
   return string.format("%02d:%02d:%02d,%03d", h, m, s, mi)
 end
 
+---@param ms number
+---@return string
 function M.make_dur_ms(ms)
   local h, m, s, mi = M.from_ms(ms)
   return M.make_dur(h, m, s, mi)
 end
 
+---@param f_h integer
+---@param f_m integer
+---@param f_s integer
+---@param f_mi integer
+---@param t_h integer
+---@param t_m integer
+---@param t_s integer
+---@param t_mi integer
+---@return string
 function M.make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
   return string.format("%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d",
     f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
 end
 
+---@param f_ms integer
+---@param t_ms integer
+---@return string
 function M.make_dur_full_ms(f_ms, t_ms)
   local f_h, f_m, f_s, f_mi = M.from_ms(f_ms)
   local t_h, t_m, t_s, t_mi = M.from_ms(t_ms)
   return M.make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
 end
 
+---@param line string
+---@param new_ms integer
+---@return string
 function M.amend_start(line, new_ms)
   local end_time = line:sub(13, 29)
   local start_time = M.make_dur_ms(new_ms)
   return start_time .. end_time
 end
 
+---@param line string
+---@param new_ms integer
+---@return string
 function M.amend_end(line, new_ms)
   local start_time = line:sub(1, 17)
   local end_time = M.make_dur_ms(new_ms)
