@@ -52,6 +52,7 @@ local defaults = {
   rules_by_line_count = {},
 }
 
+---@type Config
 local config = vim.tbl_deep_extend("keep", defaults, {})
 
 ---@class SetupData
@@ -103,6 +104,8 @@ end, { desc = "Toggle Srtnvim on or off" })
 
 local augroup = vim.api.nvim_create_augroup("SrtauGroup", { clear = true })
 
+---@param cfg Config
+---@param instance SyncMode
 local function notify_win_sync(cfg, instance)
   local sync_mode = cfg.sync_mode_buf or cfg.sync_mode
   if sync_mode == instance then

@@ -7,6 +7,10 @@ local video = require("srtnvim.video")
 
 local M = {}
 
+---@param t number[]
+---@param s integer
+---@param f integer
+---@return number
 local function sum_array(t, s, f)
   local sum = 0
   for i = s, f do
@@ -33,6 +37,10 @@ end
 
 
 --- Fix all indices in a file
+---@param lines string[]
+---@param subs Subtitle[]
+---@return string[]
+---@return boolean
 local function fix_indices(lines, subs)
   local changed = false
   for i, v in ipairs(subs) do
@@ -45,6 +53,9 @@ local function fix_indices(lines, subs)
 end
 
 
+---@param buf integer
+---@param subs Subtitle[]
+---@param sub_i integer
 local function sub_merge(buf, subs, sub_i)
   local ind_lines = vim.api.nvim_buf_get_lines(buf, subs[sub_i + 1].line_pos - 1, -1, false)
   local new_lines = add_to_indices(ind_lines, subs, sub_i + 1, -1)
@@ -156,6 +167,7 @@ define_command_subs("SrtMerge", function(args, data, subs)
       print("Unexpected error on line " .. err[2] .. ": " .. err[1])
       return
     end
+    ---@cast subs Subtitle[]
     sub_merge(data.buf, subs, sub_first)
   end
 end, { desc = "Merge the subtitle down", range = true })
@@ -232,12 +244,16 @@ end, {
 })
 
 
+---@param buf integer
+---@return boolean
+---@return [string, integer] | nil
 function M.fix_indices_buf(buf)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local subs, err = get_subs.parse(lines)
   if err then
     return false, err
   end
+  ---@cast subs Subtitle[]
   local new_lines, changed = fix_indices(lines, subs)
   if changed then
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines)

@@ -1,12 +1,12 @@
 local M = {}
 
 ---@class Subtitle
----@field line_pos number
----@field index number
----@field start_ms number
----@field end_ms number
----@field length_ms number
----@field line_lengths number[]
+---@field line_pos integer
+---@field index integer
+---@field start_ms integer
+---@field end_ms integer
+---@field length_ms integer
+---@field line_lengths integer[]
 local Subtitle = {
   line_pos = 0,
   index = 0,
@@ -16,6 +16,13 @@ local Subtitle = {
   line_lengths = { 0, 0 },
 }
 
+---@param line_pos integer
+---@param index integer
+---@param length_ms integer
+---@param line_lengths integer[]
+---@param start_ms integer
+---@param end_ms integer
+---@return Subtitle
 function Subtitle.create(line_pos, index, length_ms, line_lengths, start_ms, end_ms)
   local t = {
     line_pos = line_pos,

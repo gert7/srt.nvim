@@ -30,6 +30,7 @@ local M = {}
 ---@field shift_ms number
 ---@field seek_while_paused boolean
 ---@field sync_mode SyncMode
+---@field sync_mode_buf? SyncMode
 ---@field sync_jump_cur_window boolean
 ---@field upload_on_video_jump boolean
 ---@field add_at_seek boolean
