@@ -294,9 +294,21 @@ function M.annotate_subs(buf, config, data, has_groups)
   end
 end
 
+
+---@enum ParseErrorType
+local ParseErrorType = {
+  ErrorAtIndex = "index",
+  ErrorReadingDuration = "duration"
+}
+
+---@class ParseError
+---@field error_text string
+---@field line integer
+---@field error_type ParseErrorType
+
 ---@param lines string[]
 ---@return Subtitle[] | nil
----@return [string, integer] | nil
+---@return ParseError | nil
 function M.parse(lines)
   local state = State.index
 
@@ -313,7 +325,11 @@ function M.parse(lines)
       else
         local n = tonumber(line)
         if not n then
-          return nil, { "Error reading subtitle index!", k }
+          return nil, {
+            error_text = "Error reading subtitle index!",
+            line = k,
+            error_type = ParseErrorType.ErrorAtIndex
+          }
         end
         next_subtitle.line_pos = k
         next_subtitle.index = n
@@ -322,7 +338,11 @@ function M.parse(lines)
     elseif state == State.timing then
       local f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi = string.gmatch(line, matcher)()
       if not t_mi then
-        return nil, { "Error reading duration!", k }
+        return nil, {
+          error_text = "Error reading duration!",
+          line = k,
+          error_type = ParseErrorType.ErrorReadingDuration
+        }
       end
       local last_f = subtitle.to_ms(f_h, f_m, f_s, f_mi)
       local last_t = subtitle.to_ms(t_h, t_m, t_s, t_mi)
@@ -351,9 +371,9 @@ function M.parse(lines)
   return subtitles, nil
 end
 
----@param err [string, integer]
+---@param err ParseError
 function M.print_err(err)
-  print("Error: " .. err[1] .. " on line " .. err[2])
+  print("Error: " .. err.error_text .. " on line " .. err.line)
 end
 
 ---@param subs Subtitle[]

@@ -18,10 +18,12 @@ function M.notify_update()
   local cur_buf = vim.api.nvim_win_get_buf(cur_win)
   local data = get_subs.get_data(cur_buf)
   local subs, err = get_subs.parse(data.lines)
-  if err or not subs then
+  if err then
     print("get_subs error in window " .. cur_win)
+    get_subs.print_err(err)
     return
   end
+  ---@cast subs Subtitle[]
 
   local sub_i = get_subs.find_subtitle(subs, data.line)
   if not sub_i then
