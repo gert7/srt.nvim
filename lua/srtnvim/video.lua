@@ -53,16 +53,27 @@ local function get_pit(xml)
   return len * pos * 1000, len
 end
 
+---@type table<number, string>
 local ips = {}
+---@type table<number, string>
 local ports = {}
+---@type table<number, string>
 local passwords = {}
 
+---@param buf integer
+---@param ip string | nil
+---@param port string | nil
+---@param password string | nil
 local function set_buf_credentials(buf, ip, port, password)
   ips[buf] = ip
   ports[buf] = port
   passwords[buf] = password
 end
 
+---@alias BufCredentials { ip: string, port: string, password: string }
+
+---@param buf integer
+---@return BufCredentials | nil
 local function get_buf_credentials(buf)
   local ip = ips[buf]
   if ip then
@@ -135,7 +146,7 @@ local function video_connect(opts)
   local buf = vim.api.nvim_get_current_buf()
   local args = vim.split(opts.args, " ")
   local ip = "127.0.0.1"
-  local port = 8080
+  local port = "8080"
 
   local password = args[1]
   if #args >= 2 then
@@ -177,7 +188,7 @@ local function upload_subtitle(buf)
     credentials,
     "addsubtitle&val=/tmp/srtnvim.srt",
     function(xml)
-      set_buf_credentials(credentials.ip, credentials.port, credentials.password)
+      set_buf_credentials(buf, credentials.ip, credentials.port, credentials.password)
       local track = subtitle_track(xml)
       print(track)
       get_status(credentials, "subtitle_track&val=" .. (track + 1), function()
@@ -187,6 +198,11 @@ local function upload_subtitle(buf)
   return true
 end
 
+---@class SubdataVideo: Subdata
+---@field credentials BufCredentials
+
+---@param buf integer
+---@return SubdataVideo
 local function get_data(buf)
   return {
     config = config.get_config(),
@@ -288,7 +304,9 @@ local function clear_timers(buf)
   return false
 end
 
+---@type table<number, number>
 local pits = {}
+---@type table<number, boolean>
 local playings = {}
 
 define_video_command("SrtVideoTrack", function(args, data)
