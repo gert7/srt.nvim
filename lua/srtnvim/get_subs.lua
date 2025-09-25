@@ -83,11 +83,10 @@ end
 
 local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 
----@param buf number
----@param config Config
----@param data any
----@param has_groups? boolean
-function M.annotate_subs(buf, config, data, has_groups)
+---@param buf number Buffer ID
+---@param config Config Configuration options
+---@param data SetupData Init setup data
+function M.annotate_subs(buf, config, data)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 
   vim.api.nvim_buf_clear_namespace(buf, nsid, 0, -1)
@@ -296,7 +295,7 @@ end
 
 
 ---@enum ParseErrorType
-local ParseErrorType = {
+M.ParseErrorType = {
   ErrorAtIndex = "index",
   ErrorReadingDuration = "duration"
 }
@@ -328,7 +327,7 @@ function M.parse(lines)
           return nil, {
             error_text = "Error reading subtitle index!",
             line = k,
-            error_type = ParseErrorType.ErrorAtIndex
+            error_type = M.ParseErrorType.ErrorAtIndex
           }
         end
         next_subtitle.line_pos = k
@@ -341,7 +340,7 @@ function M.parse(lines)
         return nil, {
           error_text = "Error reading duration!",
           line = k,
-          error_type = ParseErrorType.ErrorReadingDuration
+          error_type = M.ParseErrorType.ErrorReadingDuration
         }
       end
       local last_f = subtitle.to_ms(f_h, f_m, f_s, f_mi)

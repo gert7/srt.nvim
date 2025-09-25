@@ -38,6 +38,10 @@ position)
 - `SrtShiftTimeStrict` - shift the beginning or end time of a duration and
 enforce it on adjacent subtitles. A combination of `SrtShiftTime` and
 `SrtEnforce`
+- `SrtDeleteEmptyLines` - delete empty lines between subtitle texts that
+cause parsing to fail
+- `SrtToggle` - enable or disable any of the boolean configuration options.
+Toggles the `enabled` option by default (listed below).
 
 ### Video commands
 

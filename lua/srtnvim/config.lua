@@ -36,17 +36,19 @@ local M = {}
 ---@field add_at_seek boolean
 ---@field rules_by_line_count table
 
+---@type Config
+local config = {}
+
 ---@return Config
 M.get_config = function()
-  return {}
+  return config
 end
 
----@param config_fn fun(): Config
-function M.set_config(config_fn)
-  M.get_config = config_fn
-  local config = config_fn()
-  for _, rule_set in pairs(config.rules_by_line_count) do
-    setmetatable(rule_set, { __index = config })
+---@param new_config Config
+function M.set_config(new_config)
+  config = new_config
+  for _, rule_set in pairs(new_config.rules_by_line_count) do
+    setmetatable(rule_set, { __index = new_config })
   end
 end
 

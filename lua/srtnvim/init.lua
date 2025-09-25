@@ -61,17 +61,13 @@ local config = vim.tbl_deep_extend("keep", defaults, {})
 ---@type SetupData
 local data = {}
 
-local function get_config()
-  return config
-end
-
 ---@param user_opts Config
 function M.setup(user_opts)
   config = vim.tbl_deep_extend("force", defaults, user_opts or {})
   data = {
     pause_lines = get_subs.preproduce_pause_lines(config)
   }
-  shared_config.set_config(get_config)
+  shared_config.set_config(config)
 
   if config.split_mode ~= c.SPLIT_HALF and
       config.split_mode ~= c.SPLIT_LENGTH then
@@ -79,28 +75,60 @@ function M.setup(user_opts)
   end
 
   if config.sync_mode ~= c.SYNC_MODE_NEVER and
-    config.sync_mode ~= c.SYNC_MODE_SAVE and
-    config.sync_mode ~= c.SYNC_MODE_CHANGE and
-    config.sync_mode ~= c.SYNC_MODE_MOVE then
-      print("srt.nvim configuration error: Unknown sync mode '" .. config.sync_mode .. "'")
-    end
+      config.sync_mode ~= c.SYNC_MODE_SAVE and
+      config.sync_mode ~= c.SYNC_MODE_CHANGE and
+      config.sync_mode ~= c.SYNC_MODE_MOVE then
+    print("srt.nvim configuration error: Unknown sync mode '" .. config.sync_mode .. "'")
+  end
 end
 
-vim.api.nvim_create_user_command("SrtToggle", function()
-  config.enabled = not config.enabled
-  local in_srt_file = "Note: not currently editing a SubRip file."
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_get_option(buf, "filetype") == "srt" then
-      in_srt_file = ""
-      get_subs.annotate_subs(buf, config, data)
+local function get_boolean_config_keys()
+  local keys = {}
+  for k, v in pairs(defaults) do
+    if type(v) == "boolean" then
+      table.insert(keys, k)
     end
   end
-  if config.enabled then
-    print("Srtnvim is now enabled. " .. in_srt_file)
-  else
-    print("Srtnvim is now disabled. " .. in_srt_file)
-  end
-end, { desc = "Toggle Srtnvim on or off" })
+  table.sort(keys)
+  return keys
+end
+
+vim.api.nvim_create_user_command("SrtToggle", function(opts)
+    local setting = opts.args
+    if setting == "" then
+      setting = "enabled"
+    end
+
+    if type(config[setting]) ~= "boolean" then
+      print("Srt.nvim: Cannot toggle non-boolean or unknown setting '" .. setting .. "'")
+      return
+    end
+
+    config[setting] = not config[setting]
+
+    local in_srt_file = "Note: not currently editing a SubRip file."
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_get_option(buf, "filetype") == "srt" then
+        in_srt_file = ""
+        get_subs.annotate_subs(buf, config, data)
+      end
+    end
+
+    local new_state = config[setting] and "enabled" or "disabled"
+    if setting == "enabled" then
+      print("Srt.nvim is now " .. new_state .. ". " .. in_srt_file)
+    else
+      print("Srt.nvim: Toggled '" .. setting .. "' to " .. new_state .. ". " .. in_srt_file)
+    end
+  end,
+  {
+    desc = "Toggle Srtnvim or a specific boolean setting on or off",
+    nargs = "?",
+    complete = function()
+      return get_boolean_config_keys()
+    end
+  }
+)
 
 local augroup = vim.api.nvim_create_augroup("SrtauGroup", { clear = true })
 
@@ -120,7 +148,7 @@ vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "BufEnter" }, {
     if config.autofix_index then
       commands.fix_indices_buf(ev.buf)
     end
-    get_subs.annotate_subs(ev.buf, config, data, false)
+    get_subs.annotate_subs(ev.buf, config, data)
     if config.sync_mode == c.SYNC_MODE_CHANGE then
       video.notify_update(ev.buf)
     end

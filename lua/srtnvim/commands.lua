@@ -5,6 +5,8 @@ local get_subs = require("srtnvim.get_subs")
 local subtitle = require("srtnvim.subtitle")
 local video = require("srtnvim.video")
 
+local ParseErrorType = get_subs.ParseErrorType
+
 local M = {}
 
 ---@param t number[]
@@ -826,6 +828,50 @@ define_command_subs("SrtJump", function(args, data, subs)
   vim.api.nvim_win_set_cursor(0, { sub.line_pos, 0 })
   vim.cmd("normal! zz")
 end, { desc = "Jump to subtitle by index", nargs = 1 })
+
+
+define_command("SrtDeleteEmptyLines", function(args, data)
+  local count = 0
+  local limit = 1000
+
+  -- Assume we won't fix more than limit of these gaps
+  for i = 1, limit do
+    if i >= limit then
+      print("Stopping after fail-safe limit of " .. limit .. " iterations. Consider running this command again.")
+    end
+    local line_count = #data.lines
+    if line_count < 3 then
+      -- Too few lines for this to even happen or the first index is missing.
+      print("Too few lines to continue")
+      break
+    end
+    local _, err = get_subs.parse(data.lines)
+    if err then
+      -- Obviously we can't tell if this is an "other kind" of index reading error.
+      -- But since an index can only ever be a number, there really isn't any "other
+      -- kind" of index reading error. We must tell the user to consider this.
+      if err.error_type == ParseErrorType.ErrorAtIndex then
+        local line = err.line
+        -- Delete the *previous* line
+        vim.api.nvim_buf_set_lines(data.buf, line - 2, line - 1, false, {})
+        count = count + 1
+        data.lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+        if #data.lines == line_count then
+          -- Something has gone horribly wrong and we aren't deleting lines anymore.
+          print("Error: Line deletion had no effect!")
+          break
+        end
+      else
+        print("Error other than reading index found on line " .. err.line)
+        get_subs.print_err(err)
+        break
+      end
+    else
+      break
+    end
+  end
+  print("Deleted " .. count .. " empty subtitles")
+end, { desc = "Delete empty lines that cause syntax errors" })
 
 
 return M
