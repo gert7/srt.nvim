@@ -870,7 +870,7 @@ define_command("SrtDeleteEmptyLines", function(args, data)
       break
     end
   end
-  print("Deleted " .. count .. " empty subtitles")
+  print("Deleted " .. count .. " empty lines")
 end, { desc = "Delete empty lines that cause syntax errors" })
 
 
