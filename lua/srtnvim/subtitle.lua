@@ -101,6 +101,7 @@ function M.make_dur_full_ms(f_ms, t_ms)
   return M.make_dur_full(f_h, f_m, f_s, f_mi, t_h, t_m, t_s, t_mi)
 end
 
+---Edit the start time of a duration line.
 ---@param line string
 ---@param new_ms integer
 ---@return string
@@ -110,6 +111,7 @@ function M.amend_start(line, new_ms)
   return start_time .. end_time
 end
 
+---Edit the end time of a duration line.
 ---@param line string
 ---@param new_ms integer
 ---@return string

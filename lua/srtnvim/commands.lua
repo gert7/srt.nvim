@@ -874,4 +874,67 @@ define_command("SrtDeleteEmptyLines", function(args, data)
 end, { desc = "Delete empty lines that cause syntax errors" })
 
 
+define_command_subtitle("SrtStretchForward", function (args, data, subs, sub_i)
+  local sub = subs[sub_i]
+  if sub_i == #subs then
+    print("Can't stretch the last subtitle forward")
+    return
+  end
+
+  local next_sub = subs[sub_i + 1]
+  local new_end_ms = next_sub.start_ms - data.config.min_pause
+
+  if new_end_ms <= sub.start_ms then
+    print("Cannot stretch: new end time would be before or equal to start time")
+    return
+  end
+
+  if new_end_ms <= sub.end_ms then
+    -- it's not our job to enforce min_pause here
+    print("Cannot stretch: would be less than min_pause")
+    return
+  end
+
+  local new_timing = subtitle.amend_end(data.lines[sub.line_pos + 1], new_end_ms)
+  vim.api.nvim_buf_set_lines(
+    data.buf,
+    sub.line_pos,
+    sub.line_pos + 1,
+    false,
+    { new_timing }
+  )
+end, { desc = "Stretch subtitle forward up to next subtitle" })
+
+
+define_command_subtitle("SrtStretchBackward", function (args, data, subs, sub_i)
+  local sub = subs[sub_i]
+  local new_start_ms
+  if sub_i == 1 then
+    new_start_ms = 0
+  else
+    local prev_sub = subs[sub_i - 1]
+    new_start_ms = prev_sub.end_ms + data.config.min_pause
+  end
+
+  if new_start_ms >= sub.end_ms then
+    print("Cannot stretch: new start time would be after or equal to end time")
+    return
+  end
+
+  if new_start_ms >= sub.start_ms then
+    print("Cannot stretch: would be less than min_pause")
+    return
+  end
+
+  local new_timing = subtitle.amend_start(data.lines[sub.line_pos + 1], new_start_ms)
+  vim.api.nvim_buf_set_lines(
+    data.buf,
+    sub.line_pos,
+    sub.line_pos + 1,
+    false,
+    { new_timing }
+  )
+end, { desc = "Stretch subtitle backward up to previous subtitle or zero time" })
+
+
 return M
