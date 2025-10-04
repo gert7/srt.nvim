@@ -38,9 +38,9 @@ position)
 - `SrtShiftTimeStrict` - shift the beginning or end time of a duration and
 enforce it on adjacent subtitles. A combination of `SrtShiftTime` and
 `SrtEnforce`
-- `SrtStretchForward` - extend the end time of the subtitle up to the start
+- `SrtExtendForward` - extend the end time of the subtitle up to the start
 time of the next subtitle, including min_pause
-- `SrtStretchBackward` - extend the start time of the subtitle up to the end
+- `SrtExtendBackward` - extend the start time of the subtitle up to the end
 time of the previous subtitle, including min_pause
 - `SrtDeleteEmptyLines` - delete empty lines between subtitle texts that
 cause parsing to fail

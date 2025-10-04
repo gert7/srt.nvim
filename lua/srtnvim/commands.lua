@@ -874,10 +874,10 @@ define_command("SrtDeleteEmptyLines", function(args, data)
 end, { desc = "Delete empty lines that cause syntax errors" })
 
 
-define_command_subtitle("SrtStretchForward", function (args, data, subs, sub_i)
+define_command_subtitle("SrtExtendForward", function (args, data, subs, sub_i)
   local sub = subs[sub_i]
   if sub_i == #subs then
-    print("Can't stretch the last subtitle forward")
+    print("Can't extend the last subtitle forward")
     return
   end
 
@@ -885,13 +885,13 @@ define_command_subtitle("SrtStretchForward", function (args, data, subs, sub_i)
   local new_end_ms = next_sub.start_ms - data.config.min_pause
 
   if new_end_ms <= sub.start_ms then
-    print("Cannot stretch: new end time would be before or equal to start time")
+    print("Cannot extend: new end time would be before or equal to start time")
     return
   end
 
   if new_end_ms <= sub.end_ms then
     -- it's not our job to enforce min_pause here
-    print("Cannot stretch: would be less than min_pause")
+    print("Cannot extend: would be less than min_pause")
     return
   end
 
@@ -903,10 +903,10 @@ define_command_subtitle("SrtStretchForward", function (args, data, subs, sub_i)
     false,
     { new_timing }
   )
-end, { desc = "Stretch subtitle forward up to next subtitle" })
+end, { desc = "Extend subtitle forward up to next subtitle" })
 
 
-define_command_subtitle("SrtStretchBackward", function (args, data, subs, sub_i)
+define_command_subtitle("SrtExtendBackward", function (args, data, subs, sub_i)
   local sub = subs[sub_i]
   local new_start_ms
   if sub_i == 1 then
@@ -917,12 +917,12 @@ define_command_subtitle("SrtStretchBackward", function (args, data, subs, sub_i)
   end
 
   if new_start_ms >= sub.end_ms then
-    print("Cannot stretch: new start time would be after or equal to end time")
+    print("Cannot extend: new start time would be after or equal to end time")
     return
   end
 
   if new_start_ms >= sub.start_ms then
-    print("Cannot stretch: would be less than min_pause")
+    print("Cannot extend: would be less than min_pause")
     return
   end
 
@@ -934,7 +934,7 @@ define_command_subtitle("SrtStretchBackward", function (args, data, subs, sub_i)
     false,
     { new_timing }
   )
-end, { desc = "Stretch subtitle backward up to previous subtitle or zero time" })
+end, { desc = "Extend subtitle backward up to previous subtitle or zero time" })
 
 
 return M
