@@ -15,6 +15,17 @@ Edit SubRip subtitles in NeoVim.
 - Warnings for pauses being too short
 - Automatically corrects indices after edit
 
+### Time formats
+
+Time can be specified in various formats:
+
+* Milliseconds (no punctuation)
+* HH:MM:SS,mmm
+* MM:SS,mmm
+* SS,mmm
+* HH:MM:SS
+* MM:SS
+
 ### Commands
 
 - `SrtJump` - jump cursor to subtitle by index
@@ -42,6 +53,12 @@ enforce it on adjacent subtitles. A combination of `SrtShiftTime` and
 time of the next subtitle, including min_pause
 - `SrtExtendBackward` - extend the start time of the subtitle up to the end
 time of the previous subtitle, including min_pause
+- `SrtStretchTime` - stretch a range of subtitles (or all subtitles in a file
+by default) to fit in the given range, e.g. "00:01:01,500 01:30:31,000". By
+default, these are the desired start times. You can add the letter `E` to the
+end of either timestamp to specify that it is an end time instead, e.g.
+"00:01:01,500 01:30:31,000E" will fit the entire selection or file into the
+given time range.
 - `SrtDeleteEmptyLines` - delete empty lines between subtitle texts that
 cause parsing to fail
 - `SrtToggle` - enable or disable any of the boolean configuration options.

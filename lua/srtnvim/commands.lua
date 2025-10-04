@@ -398,6 +398,32 @@ local function parse_time(input)
   return nil
 end
 
+--- Parse a timing input with an optional 'S' or 'E' specifier at the end.
+-- Defaults to 'S' (start) if no specifier is found.
+---@param input string time string to parse
+---@return number | nil
+---@return 'start' | 'end'
+local function parse_time_with_specifier(input)
+  local time_str = input
+  local specifier = 'start'
+
+  local last_char = input:sub(-1):upper()
+
+  if last_char == 'S' then
+    time_str = input:sub(1, -2)
+    specifier = 'start'
+  elseif last_char == 'E' then
+    time_str = input:sub(1, -2)
+    specifier = 'end'
+  end
+
+  local ms = parse_time(time_str)
+  if not ms then
+    -- If parsing with the suffix removed fails, try parsing the original string
+    return parse_time(input), 'start'
+  end
+  return ms, specifier
+end
 
 local function srt_shift(subs, lines, from, to, shift)
   if to == -1 then
@@ -955,28 +981,41 @@ define_command_subtitle("SrtStretchTime", function(args, data, subs, sub_i)
     print("Specify start time for first and last subtitle, e.g. 00:01:20,100 01:32:10,500")
     return
   end
-  local new_first_time = parse_time(split[1])
+  local new_first_time, first_spec = parse_time_with_specifier(split[1])
   if not new_first_time then
     print("Unable to parse start time")
     return
   end
-  local new_last_time
+  local new_last_time, last_spec
   if #split == 1 then
     -- use the last start_ms as the end handle
     new_last_time = subs[#subs].start_ms
+    last_spec = 'start'
   else
-    new_last_time = parse_time(split[#split])
+    new_last_time, last_spec = parse_time_with_specifier(split[#split])
   end
   if not new_last_time then
     print("Unable to parse end time")
     return
   end
   if new_last_time < new_first_time then
-    print("Last start cannot be less than first start")
+    print("New last time cannot be less than new first time")
+    return
   end
 
-  local old_first_time = subs[sub_first].start_ms
-  local old_last_time = subs[sub_last].start_ms
+  local old_first_time
+  if first_spec == 'start' then
+    old_first_time = subs[sub_first].start_ms
+  else -- 'end'
+    old_first_time = subs[sub_first].end_ms
+  end
+
+  local old_last_time
+  if last_spec == 'start' then
+    old_last_time = subs[sub_last].start_ms
+  else -- 'end'
+    old_last_time = subs[sub_last].end_ms
+  end
 
   local old_length = old_last_time - old_first_time
   if old_length == 0 then
@@ -996,6 +1035,16 @@ define_command_subtitle("SrtStretchTime", function(args, data, subs, sub_i)
 
     local new_start_ms = (old_rel_start * difference) + new_first_time
     local new_end_ms = (old_rel_end * difference) + new_first_time
+
+    if new_start_ms < 0 then
+      print("Error: Stretch operation would result in a negative start time for subtitle " .. sub.index)
+      return
+    end
+
+    if new_start_ms > new_end_ms then
+      print("Error: Stretch operation would result in a negative duration for subtitle " .. sub.index)
+      return
+    end
 
     new_lines[sub.line_pos + 1] = subtitle.make_dur_full_ms(new_start_ms, new_end_ms)
   end
