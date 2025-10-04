@@ -1,13 +1,14 @@
-local vim = vim
-local c = require("srtnvim.constants")
-local config = require("srtnvim.config")
-local get_subs = require("srtnvim.get_subs")
-local subtitle = require("srtnvim.subtitle")
-local video = require("srtnvim.video")
+local vim            = vim
+local c              = require("srtnvim.constants")
+local config         = require("srtnvim.config")
+local get_subs       = require("srtnvim.get_subs")
+local subtitle       = require("srtnvim.subtitle")
+local video          = require("srtnvim.video")
+local util           = require("srtnvim.util")
 
 local ParseErrorType = get_subs.ParseErrorType
 
-local M = {}
+local M              = {}
 
 ---@param t number[]
 ---@param s integer
@@ -874,7 +875,7 @@ define_command("SrtDeleteEmptyLines", function(args, data)
 end, { desc = "Delete empty lines that cause syntax errors" })
 
 
-define_command_subtitle("SrtExtendForward", function (args, data, subs, sub_i)
+define_command_subtitle("SrtExtendForward", function(args, data, subs, sub_i)
   local sub = subs[sub_i]
   if sub_i == #subs then
     print("Can't extend the last subtitle forward")
@@ -906,7 +907,7 @@ define_command_subtitle("SrtExtendForward", function (args, data, subs, sub_i)
 end, { desc = "Extend subtitle forward up to next subtitle" })
 
 
-define_command_subtitle("SrtExtendBackward", function (args, data, subs, sub_i)
+define_command_subtitle("SrtExtendBackward", function(args, data, subs, sub_i)
   local sub = subs[sub_i]
   local new_start_ms
   if sub_i == 1 then
@@ -935,6 +936,76 @@ define_command_subtitle("SrtExtendBackward", function (args, data, subs, sub_i)
     { new_timing }
   )
 end, { desc = "Extend subtitle backward up to previous subtitle or zero time" })
+
+
+define_command_subtitle("SrtStretchTime", function(args, data, subs, sub_i)
+  local sub_first = get_subs.find_subtitle(subs, args.line1)
+  local sub_last = get_subs.find_subtitle(subs, args.line2) or sub_first
+
+  -- This function naturally requires a range, so no range implies everything
+  -- from start to end, even if the range is present but only over the same
+  -- subtitle
+  if sub_first == sub_last then
+    sub_first = 1
+    sub_last = #subs
+  end
+
+  local split = util.split(args.args, " ")
+  if #split == 0 then
+    print("Specify start time for first and last subtitle, e.g. 00:01:20,100 01:32:10,500")
+    return
+  end
+  local new_first_time = parse_time(split[1])
+  if not new_first_time then
+    print("Unable to parse start time")
+    return
+  end
+  local new_last_time
+  if #split == 1 then
+    -- use the last start_ms as the end handle
+    new_last_time = subs[#subs].start_ms
+  else
+    new_last_time = parse_time(split[#split])
+  end
+  if not new_last_time then
+    print("Unable to parse end time")
+    return
+  end
+  if new_last_time < new_first_time then
+    print("Last start cannot be less than first start")
+  end
+
+  local old_first_time = subs[sub_first].start_ms
+  local old_last_time = subs[sub_last].start_ms
+
+  local old_length = old_last_time - old_first_time
+  if old_length == 0 then
+    print("Cannot stretch a range with zero duration.")
+    return
+  end
+  local new_length = new_last_time - new_first_time
+  local difference = new_length / old_length
+
+  local new_lines = vim.deepcopy(data.lines)
+
+  for i = sub_first, sub_last do
+    local sub = subs[i]
+
+    local old_rel_start = sub.start_ms - old_first_time
+    local old_rel_end = sub.end_ms - old_first_time
+
+    local new_start_ms = (old_rel_start * difference) + new_first_time
+    local new_end_ms = (old_rel_end * difference) + new_first_time
+
+    new_lines[sub.line_pos + 1] = subtitle.make_dur_full_ms(new_start_ms, new_end_ms)
+  end
+
+  vim.api.nvim_buf_set_lines(data.buf, 0, -1, false, new_lines)
+
+  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
+  subs, _ = get_subs.parse(lines)
+  sub_sort(data.buf, lines, subs)
+end, { desc = "Stretch time based on start times", range = true, nargs = "?" })
 
 
 return M
