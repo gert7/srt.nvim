@@ -374,15 +374,15 @@ local function parse_time(input)
   local ms = tonumber(input)
   if ms then return ms * mul end
 
-  local h, m, s, mi = input:match("(%d+):(%d+):(%d+),(%d+)")
+  local h, m, s, mi = input:match("(%d+):(%d+):(%d+)[.,](%d+)")
   if mi then
     return subtitle.to_ms(h, m, s, mi) * mul
   end
-  m, s, mi = input:match("(%d+):(%d+),(%d+)")
+  m, s, mi = input:match("(%d+):(%d+)[.,](%d+)")
   if mi then
     return subtitle.to_ms(0, m, s, mi) * mul
   end
-  s, mi = input:match("(%d+),(%d+)")
+  s, mi = input:match("(%d+)[.,](%d+)")
   if mi then
     return subtitle.to_ms(0, 0, s, mi) * mul
   end
