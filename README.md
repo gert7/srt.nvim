@@ -158,7 +158,7 @@ The options for `sync_mode` are:
 - "never" - never upload to VLC automatically (use `SrtVideoUpload` instead)
 - "on_save" - upload/sync after save
 - "on_change" - upload/sync after change
-- "on_move" - upload/sync after moving the cursor
+- "on_move" - same as "on_change", but moves synced cursors on move
 
 `sync_mode_buf` allows you to set the sync mode separately from the VLC upload mode.
 

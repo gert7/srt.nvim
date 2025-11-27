@@ -160,7 +160,8 @@ vim.api.nvim_create_autocmd({ "BufWritePost" }, {
   group = augroup,
   pattern = { "*.srt" },
   callback = function(ev)
-    if config.sync_mode == c.SYNC_MODE_SAVE then
+    if config.sync_mode == c.SYNC_MODE_SAVE or
+        config.sync_mode == c.SYNC_MODE_MOVE then
       video.notify_update(ev.buf)
     end
     notify_win_sync(config, c.SYNC_MODE_SAVE)
@@ -171,9 +172,9 @@ vim.api.nvim_create_autocmd({ "CursorMoved" }, {
   group = augroup,
   pattern = { "*.srt" },
   callback = function(ev)
-    if config.sync_mode == c.SYNC_MODE_MOVE then
-      video.notify_update(ev.buf)
-    end
+    -- if config.sync_mode == c.SYNC_MODE_MOVE then
+    --  video.notify_update(ev.buf)
+    -- end
     notify_win_sync(config, c.SYNC_MODE_MOVE)
   end
 })
