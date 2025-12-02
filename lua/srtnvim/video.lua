@@ -313,6 +313,7 @@ define_video_command("SrtVideoTrack", function(args, data)
   if clear_timers(data.buf) then
     pits[data.buf] = -1
     playings[data.buf] = false
+    print("Video tracking disabled")
     return
   end
 
@@ -362,13 +363,15 @@ define_video_command("SrtVideoTrack", function(args, data)
         end
         ---@cast subs Subtitle[]
         local sub_i = get_subs.find_subtitle_by_ms(subs, pit)
-        local sub = subs[sub_i]
-        local line = sub.line_pos + 2
-        if line > #new_data.lines then
-          line = #new_data.lines
+        if sub_i then
+          local sub = subs[sub_i]
+          local line = sub.line_pos + 2
+          if line > #new_data.lines then
+            line = #new_data.lines
+          end
+          vim.api.nvim_win_set_cursor(0, { line, 0 })
+          vim.cmd("normal! zz")
         end
-        vim.api.nvim_win_set_cursor(0, { line, 0 })
-        vim.cmd("normal! zz")
       end
       start_cursor_timer()
     end))
@@ -376,6 +379,7 @@ define_video_command("SrtVideoTrack", function(args, data)
 
   start_req_timer()
   start_cursor_timer()
+  print("Video tracking enabled")
 end, { desc = "Toggle following the current subtitle in the buffer (affects text editor)" })
 
 define_video_command("SrtVideoUpload", function(args, data)

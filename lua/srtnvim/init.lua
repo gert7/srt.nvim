@@ -40,7 +40,7 @@ local defaults = {
   -- whether subtitles with a pause that is too short should also be fixed
   fix_bad_min_pause = true,
   shift_ms = 100,
-  seek_while_paused = true,
+  seek_while_paused = false,
   -- when to upload subtitles to VLC
   -- "never" - never
   -- "on_save" - when the buffer is saved
