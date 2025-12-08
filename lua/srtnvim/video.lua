@@ -156,7 +156,7 @@ local function get_status(credentials, req, callback)
   get_status_full(credentials.ip,
     credentials.port,
     credentials.password,
-    req,
+    req or "",
     callback)
 end
 

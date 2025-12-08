@@ -22,4 +22,13 @@ M.SYNC_MODE = {
     SYNC_MODE_MOVE = M.SYNC_MODE_MOVE
 }
 
+M.ADD_AFTER = "after"
+M.ADD_VIDEO = "video"
+
+---@enum AddMode
+M.ADD_MODE = {
+    ADD_MODE_AFTER = M.ADD_AFTER,
+    ADD_MODE_VIDEO = M.ADD_VIDEO,
+}
+
 return M

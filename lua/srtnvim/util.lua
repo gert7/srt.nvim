@@ -33,4 +33,11 @@ function M.split(inputstr, sep)
   return t
 end
 
+---@param str string
+---@param check string
+---@return boolean
+function M.starts_with(str, check)
+  return string.sub(str, 1, #check) == check
+end
+
 return M

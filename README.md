@@ -37,7 +37,9 @@ Time can be specified in various formats:
 - `SrtShift` - shift an entire subtitle by a given offset, with optional range
 selection
 - `SrtShiftAll` - shift all subtitles by a given offset
-- `SrtAdd` - add a subtitle
+- `SrtAdd` - add a subtitle. This can take an offset, a mode for adding either
+after the current subtitle or after the current point in a connected video, or
+both.
 - `SrtShiftTime` - shift the beginning or end time of a duration (based on 
 cursor position)
 - `SrtEnforce` - enforce a subtitle's beginning or end (based on cursor
@@ -80,6 +82,21 @@ interfaces, and the password can be set from Main interfaces -> Lua
 the video is seeking or playing
 - `SrtSetVideoTime` - set start or end of a subtitle to the current time in the video (based on
 cursor position)
+
+### SrtAdd
+
+Examples of using `SrtAdd`:
+
+| Command               | Result                                                      |
+| --------------------- | ----------------------------------------------------------- |
+| SrtAdd                | Immediately add after the end of previous, plus min_pause   |
+| SrtAdd after          | Same as previous                                            |
+| SrtAdd 00:01:00       | Same as previous but after 1 minute                         |
+| SrtAdd after 00:01:00 | Same but override when video is connected                   |
+| SrtAdd video          | Same, but at the video seek point if `add_at_seek` is false |
+| SrtAdd video 00:01:00 | Same but override for video                                 |
+
+Regarding connected videos, refer to the `add_at_seek` option below.
 
 ### Window sync
 

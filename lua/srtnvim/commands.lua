@@ -545,9 +545,23 @@ end, {
 
 define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
   local offset = data.config.min_pause
+  local time_str = ""
+  ---Forced mode to use
+  ---@type AddMode?
+  local mode = nil
 
-  if args.args ~= "" then
-    local p_offset = parse_time(args.args)
+  if util.starts_with(args.args, c.ADD_AFTER) then
+    time_str = string.sub(args.args, #(c.ADD_AFTER) + 2)
+    mode = c.ADD_AFTER
+  elseif util.starts_with(args.args, c.ADD_VIDEO) then
+    time_str = string.sub(args.args, #(c.ADD_VIDEO) + 2)
+    mode = c.ADD_VIDEO
+  elseif args.args ~= "" then
+    time_str = args.args
+  end
+
+  if time_str ~= "" then
+    local p_offset = parse_time(time_str)
     if not p_offset then
       print("Invalid time format")
       return
@@ -559,7 +573,13 @@ define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
     local sub = subs[sub_i]
     local new_line = sub.line_pos + 1 + #sub.line_lengths
     local new_start = sub.end_ms
-    if data.config.add_at_seek and pit then
+    if mode == c.ADD_VIDEO and not pit then
+      print("No video connected!")
+      return
+    end
+    if mode ~= c.ADD_AFTER and
+        (data.config.add_at_seek or mode == c.ADD_VIDEO) and
+        pit then
       new_start = pit
     end
     new_start = new_start + offset
@@ -581,7 +601,13 @@ define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
       print("Added new subtitle at " .. subtitle.make_dur_ms(new_start))
     end)
   end)
-end, { desc = "Add a subtitle after the current one with optional offset", nargs = "?" })
+end, {
+  desc = "Add a subtitle after the current one with optional offset",
+  nargs = "?",
+  complete = function()
+    return { c.ADD_AFTER, c.ADD_VIDEO }
+  end
+})
 
 
 define_command_subtitle("SrtShiftTime", function(args, data, subs, sub_i)
