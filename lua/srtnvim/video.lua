@@ -150,7 +150,7 @@ local function get_status_full(ip, port, password, req, callback)
 end
 
 ---@param credentials BufCredentials
----@param req string
+---@param req string?
 ---@param callback fun(xml: string): nil
 local function get_status(credentials, req, callback)
   get_status_full(credentials.ip,
