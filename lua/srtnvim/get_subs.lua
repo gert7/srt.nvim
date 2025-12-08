@@ -87,6 +87,7 @@ local nsid = vim.api.nvim_create_namespace("srtsubdiag")
 ---@param config Config Configuration options
 ---@param data SetupData Init setup data
 function M.annotate_subs(buf, config, data)
+  ---@type string[]
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 
   vim.api.nvim_buf_clear_namespace(buf, nsid, 0, -1)
@@ -154,8 +155,8 @@ function M.annotate_subs(buf, config, data)
 
       last_timing_k = k
 
-      local from = subtitle.to_ms(f_h, f_m, f_s, f_mi)
-      local to = subtitle.to_ms(t_h, t_m, t_s, t_mi)
+      local from = subtitle.s_to_ms(f_h, f_m, f_s, f_mi)
+      local to = subtitle.s_to_ms(t_h, t_m, t_s, t_mi)
       last_timing = to - from
 
       if from < cur_start then
@@ -343,8 +344,8 @@ function M.parse(lines)
           error_type = M.ParseErrorType.ErrorReadingDuration
         }
       end
-      local last_f = subtitle.to_ms(f_h, f_m, f_s, f_mi)
-      local last_t = subtitle.to_ms(t_h, t_m, t_s, t_mi)
+      local last_f = subtitle.s_to_ms(f_h, f_m, f_s, f_mi)
+      local last_t = subtitle.s_to_ms(t_h, t_m, t_s, t_mi)
       next_subtitle.start_ms = last_f
       next_subtitle.end_ms = last_t
       next_subtitle.length_ms = last_t - last_f

@@ -47,6 +47,15 @@ function M.to_ms(h, m, s, mi)
   return mi + s * 1000 + m * 60000 + h * 3600000
 end
 
+---@param h string
+---@param m string
+---@param s string
+---@param mi string
+---@return integer
+function M.s_to_ms(h, m, s, mi)
+  return tonumber(mi) + tonumber(s) * 1000 + tonumber(m) * 60000 + tonumber(h) * 3600000
+end
+
 ---@param ms integer
 ---@return integer
 ---@return integer
