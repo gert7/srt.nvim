@@ -10,6 +10,8 @@ local M = {}
 local REQUEST_TIMER = 200
 local CURSOR_TIMER = 200
 
+---@param xml string
+---@return number?
 local function subtitle_track(xml)
   local pattern = "<category%sname='Stream%s(%d+)'>"
 
@@ -27,17 +29,23 @@ local function subtitle_track(xml)
   return max
 end
 
+---@param xml string
+---@return boolean
 local function is_playing(xml)
   local pattern = "<state>(%a+)</state>"
   local state = string.gmatch(xml, pattern)()
   return state == "playing"
 end
 
+---@param xml any
+---@return number?
 local function get_position(xml)
   local pattern = "<position>(%d+%.%d+)</position>"
   return tonumber(string.gmatch(xml, pattern)())
 end
 
+---@param xml string
+---@return number?
 local function get_length(xml)
   local pattern = "<length>(%d+)</length>"
   return tonumber(string.gmatch(xml, pattern)())
@@ -45,11 +53,14 @@ end
 
 --- Get the current position in milliseconds and the length of the video
 ---@param xml string
----@return number
----@return number
+---@return number?
+---@return number?
 local function get_pit(xml)
   local pos = get_position(xml)
   local len = get_length(xml)
+  if not pos or not len then
+    return nil, nil
+  end
   return len * pos * 1000, len
 end
 
@@ -87,6 +98,11 @@ local function get_buf_credentials(buf)
   end
 end
 
+---@param ip string
+---@param port string
+---@param password string
+---@param req string
+---@param callback fun(xml: string): nil
 local function get_status_full(ip, port, password, req, callback)
   local client = vim.uv.new_tcp()
   client:connect(ip, port, function(err)
@@ -109,9 +125,9 @@ local function get_status_full(ip, port, password, req, callback)
       .. "User-Agent: curl/8.11.1\n"
       .. "Accept: */*\n\n")
     local result = ""
-    client:read_start(function(err, chunk)
-      if err then
-        print("Error is " .. err)
+    client:read_start(function(err2, chunk)
+      if err2 then
+        print("Error is " .. err2)
       end
       if chunk then
         result = result .. chunk
@@ -133,6 +149,9 @@ local function get_status_full(ip, port, password, req, callback)
   end)
 end
 
+---@param credentials BufCredentials
+---@param req string
+---@param callback fun(xml: string): nil
 local function get_status(credentials, req, callback)
   get_status_full(credentials.ip,
     credentials.port,
@@ -162,7 +181,7 @@ local function video_connect(opts)
     vim.schedule(function()
       set_buf_credentials(buf, ip, port, password)
     end)
-    local track = subtitle_track(xml)
+    local track = subtitle_track(xml) or 0
     get_status({
       ip = ip,
       port = port,
@@ -189,8 +208,7 @@ local function upload_subtitle(buf)
     "addsubtitle&val=/tmp/srtnvim.srt",
     function(xml)
       set_buf_credentials(buf, credentials.ip, credentials.port, credentials.password)
-      local track = subtitle_track(xml)
-      print(track)
+      local track = subtitle_track(xml) or 0
       get_status(credentials, "subtitle_track&val=" .. (track + 1), function()
         print("Subtitle track " .. track .. "set")
       end)
@@ -329,7 +347,7 @@ define_video_command("SrtVideoTrack", function(args, data)
       timer:stop()
       get_status(data.credentials, nil, function(xml)
         local success, pos = pcall(get_position, xml) -- ????
-        if not success then
+        if not success or not pos then
           print("Error getting position")
           return
         end
@@ -424,7 +442,7 @@ define_video_command("SrtVideoSetTime", function(args, data)
 
   get_status(data.credentials, nil, function(xml)
     local new_ms = get_pit(xml)
-    if new_ms < 0 then
+    if not new_ms or new_ms < 0 then
       print("Error getting position")
       return
     end
