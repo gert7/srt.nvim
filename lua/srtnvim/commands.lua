@@ -298,20 +298,20 @@ define_command_subs("SrtSort", function(args, data, subs)
 end, { desc = "Sort the subtitles by starting times" })
 
 
-local function fix_timing(buf, lines, subs, i, config)
+local function fix_timing(buf, lines, subs, i, cfg)
   local sub = subs[i]
   local next = subs[i + 1]
   if sub.start_ms > sub.end_ms then
     return false, "Subtitle " .. sub.index .. " has a negative duration"
   elseif sub.end_ms > next.start_ms or
-      (config.fix_bad_min_pause and sub.end_ms > next.start_ms - config.min_pause) then
+      (cfg.fix_bad_min_pause and sub.end_ms > next.start_ms - cfg.min_pause) then
     local mp = 0
-    if config.fix_with_min_pause then
-      mp = config.min_pause
+    if cfg.fix_with_min_pause then
+      mp = cfg.min_pause
     end
     local new_end = next.start_ms - mp
 
-    if new_end - sub.start_ms >= config.min_duration then
+    if new_end - sub.start_ms >= cfg.min_duration then
       local first_start = lines[sub.line_pos + 1]:sub(1, 17)
       -- local fe_h, fe_m, fe_s, fe_mi = subtitle.from_ms(new_end)
       vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false,
@@ -1084,3 +1084,4 @@ end, { desc = "Stretch time based on start times", range = true, nargs = "?" })
 
 
 return M
+
