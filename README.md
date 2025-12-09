@@ -34,6 +34,8 @@ Time can be specified in various formats:
 - `SrtSort` - sort subtitles by start time
 - `SrtFixTiming` - fix overlapping timings if possible
 - `SrtFixTimingAll` - fix all overlapping timings
+- `SrtDuration` - set subtitle duration (accepts `E`-specifier to set
+duration backwards)
 - `SrtShift` - shift an entire subtitle by a given offset, with optional range
 selection
 - `SrtShiftAll` - shift all subtitles by a given offset

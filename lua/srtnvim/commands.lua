@@ -229,7 +229,7 @@ define_command_subtitle("SrtSplit", function(args, data, subs, sub_i)
   local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
 
   vim.api.nvim_buf_set_lines(data.buf, sub.line_pos, sub.line_pos + 1, false,
-    { first_start .. first_end })
+  { first_start .. first_end })
 
   local new_header = {
     "",
@@ -239,11 +239,11 @@ define_command_subtitle("SrtSplit", function(args, data, subs, sub_i)
 
   vim.api.nvim_buf_set_lines(data.buf, split_point, split_point, false, new_header)
 end, {
-  desc = "Split the subtitle in two",
-  nargs = "?",
-  complete = function()
-    return { c.SPLIT_LENGTH, c.SPLIT_HALF }
-  end
+desc = "Split the subtitle in two",
+nargs = "?",
+complete = function()
+  return { c.SPLIT_LENGTH, c.SPLIT_HALF }
+end
 })
 
 
@@ -272,6 +272,9 @@ define_command("SrtFixIndex", function(args, data)
 end, { desc = "Fix the indices of the subtitles" })
 
 
+---@param buf integer
+---@param lines string[]
+---@param subs Subtitle[]
 local function sub_sort(buf, lines, subs)
   table.sort(subs, function(a, b)
     return a.start_ms < b.start_ms
@@ -293,6 +296,16 @@ local function sub_sort(buf, lines, subs)
 end
 
 
+---@param buf integer
+local function sort_buffer(buf)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local subs, _ = get_subs.parse(lines)
+  if subs then
+    sub_sort(buf, lines, subs)
+  end
+end
+
+
 define_command_subs("SrtSort", function(args, data, subs)
   sub_sort(data.buf, data.lines, subs)
 end, { desc = "Sort the subtitles by starting times" })
@@ -304,7 +317,7 @@ local function fix_timing(buf, lines, subs, i, cfg)
   if sub.start_ms > sub.end_ms then
     return false, "Subtitle " .. sub.index .. " has a negative duration"
   elseif sub.end_ms > next.start_ms or
-      (cfg.fix_bad_min_pause and sub.end_ms > next.start_ms - cfg.min_pause) then
+    (cfg.fix_bad_min_pause and sub.end_ms > next.start_ms - cfg.min_pause) then
     local mp = 0
     if cfg.fix_with_min_pause then
       mp = cfg.min_pause
@@ -315,7 +328,7 @@ local function fix_timing(buf, lines, subs, i, cfg)
       local first_start = lines[sub.line_pos + 1]:sub(1, 17)
       -- local fe_h, fe_m, fe_s, fe_mi = subtitle.from_ms(new_end)
       vim.api.nvim_buf_set_lines(buf, sub.line_pos, sub.line_pos + 1, false,
-        { first_start .. subtitle.make_dur_ms(new_end) })
+      { first_start .. subtitle.make_dur_ms(new_end) })
     else
       return false, "Can't shrink subtitle " .. sub.index .. ", would break min_duration"
     end
@@ -399,28 +412,28 @@ local function parse_time(input)
 end
 
 --- Parse a timing input with an optional 'S' or 'E' specifier at the end.
--- Defaults to 'S' (start) if no specifier is found.
+--- Defaults to 'S' (start) if no specifier is found.
 ---@param input string time string to parse
 ---@return number | nil
----@return 'start' | 'end'
+---@return 'S' | 'E'
 local function parse_time_with_specifier(input)
   local time_str = input
-  local specifier = 'start'
+  local specifier = 'S'
 
   local last_char = input:sub(-1):upper()
 
   if last_char == 'S' then
     time_str = input:sub(1, -2)
-    specifier = 'start'
+    specifier = 'S'
   elseif last_char == 'E' then
     time_str = input:sub(1, -2)
-    specifier = 'end'
+    specifier = 'E'
   end
 
   local ms = parse_time(time_str)
   if not ms then
     -- If parsing with the suffix removed fails, try parsing the original string
-    return parse_time(input), 'start'
+    return parse_time(input), 'S'
   end
   return ms, specifier
 end
@@ -473,9 +486,7 @@ define_command_subs("SrtShift", function(args, data, subs)
 
   vim.api.nvim_buf_set_lines(data.buf, 0, -1, false, lines)
 
-  lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(lines)
-  sub_sort(data.buf, lines, subs)
+  sort_buffer(data.buf)
 end, { desc = "Shift the current subtitle", nargs = 1, range = true })
 
 
@@ -495,9 +506,7 @@ define_command_subs("SrtShiftAll", function(args, data, subs)
 
   vim.api.nvim_buf_set_lines(data.buf, 0, -1, false, lines)
 
-  lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(lines)
-  sub_sort(data.buf, lines, subs)
+  sort_buffer(data.buf)
 end, { desc = "Shift all subtitles", nargs = 1 })
 
 
@@ -533,13 +542,11 @@ define_command_subtitle("SrtImport", function(args_in, data, subs, sub_i)
 
   vim.api.nvim_buf_set_lines(data.buf, -1, -1, false, new_lines)
 
-  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(lines)
-  sub_sort(data.buf, lines, subs)
+  sort_buffer(data.buf)
 end, {
-  desc = "Import subtitles from another file after min_pause or optional offset",
-  nargs = "+",
-  complete = "file"
+desc = "Import subtitles from another file after min_pause or optional offset",
+nargs = "+",
+complete = "file"
 })
 
 
@@ -578,8 +585,8 @@ define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
       return
     end
     if mode ~= c.ADD_AFTER and
-        (data.config.add_at_seek or mode == c.ADD_VIDEO) and
-        pit then
+      (data.config.add_at_seek or mode == c.ADD_VIDEO) and
+      pit then
       new_start = pit
     end
     new_start = new_start + offset
@@ -594,20 +601,59 @@ define_command_subtitle("SrtAdd", function(args, data, subs, sub_i)
     vim.schedule(function()
       vim.api.nvim_buf_set_lines(data.buf, new_line, new_line, false, new_header)
 
-      local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-      subs, _ = get_subs.parse(lines)
-      sub_sort(data.buf, lines, subs)
+      sort_buffer(data.buf)
 
       print("Added new subtitle at " .. subtitle.make_dur_ms(new_start))
     end)
   end)
 end, {
-  desc = "Add a subtitle after the current one with optional offset",
-  nargs = "?",
-  complete = function()
-    return { c.ADD_AFTER, c.ADD_VIDEO }
-  end
+desc = "Add a subtitle after the current one with optional offset",
+nargs = "?",
+complete = function()
+  return { c.ADD_AFTER, c.ADD_VIDEO }
+end
 })
+
+define_command_subtitle("SrtDuration", function(args, data, subs, sub_i)
+  local sub = subs[sub_i]
+
+  if args.args == "" then
+    print("No duration provided")
+    return
+  end
+
+  local shift, spec = parse_time_with_specifier(args.args)
+  if not shift then
+    print("Invalid time format")
+    return
+  end
+
+  if spec == 'S' then
+    local end_ms = sub.start_ms + shift
+
+    local new_timing = subtitle.amend_end(data.lines[sub.line_pos + 1], end_ms)
+    vim.api.nvim_buf_set_lines(
+      data.buf,
+      sub.line_pos,
+      sub.line_pos + 1,
+      false,
+      { new_timing }
+    )
+  else
+    local start_ms = sub.end_ms - shift
+
+    local new_timing = subtitle.amend_start(data.lines[sub.line_pos + 1], start_ms)
+    vim.api.nvim_buf_set_lines(
+      data.buf,
+      sub.line_pos,
+      sub.line_pos + 1,
+      false,
+      { new_timing }
+    )
+  end
+
+  sort_buffer(data.buf)
+end, { desc = "Set subtitle duration", nargs = "?" })
 
 
 define_command_subtitle("SrtShiftTime", function(args, data, subs, sub_i)
@@ -1016,7 +1062,7 @@ define_command_subtitle("SrtStretchTime", function(args, data, subs, sub_i)
   if #split == 1 then
     -- use the last start_ms as the end handle
     new_last_time = subs[#subs].start_ms
-    last_spec = 'start'
+    last_spec = 'S'
   else
     new_last_time, last_spec = parse_time_with_specifier(split[#split])
   end
@@ -1030,16 +1076,16 @@ define_command_subtitle("SrtStretchTime", function(args, data, subs, sub_i)
   end
 
   local old_first_time
-  if first_spec == 'start' then
+  if first_spec == 'S' then
     old_first_time = subs[sub_first].start_ms
-  else -- 'end'
+  else -- 'E'
     old_first_time = subs[sub_first].end_ms
   end
 
   local old_last_time
-  if last_spec == 'start' then
+  if last_spec == 'S' then
     old_last_time = subs[sub_last].start_ms
-  else -- 'end'
+  else -- 'E'
     old_last_time = subs[sub_last].end_ms
   end
 
@@ -1077,9 +1123,7 @@ define_command_subtitle("SrtStretchTime", function(args, data, subs, sub_i)
 
   vim.api.nvim_buf_set_lines(data.buf, 0, -1, false, new_lines)
 
-  local lines = vim.api.nvim_buf_get_lines(data.buf, 0, -1, false)
-  subs, _ = get_subs.parse(lines)
-  sub_sort(data.buf, lines, subs)
+  sort_buffer(data.buf)
 end, { desc = "Stretch time based on start times", range = true, nargs = "?" })
 
 
