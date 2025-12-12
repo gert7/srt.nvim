@@ -8,49 +8,7 @@ local win_sync = require("srtnvim.win_sync")
 
 local M = {}
 
----@type Config
-local defaults = {
-  enabled = true,
-  autofix_index = true,
-  length = true,
-  pause = true, -- pause will still be shown if pause warning is shown
-  pause_warning = true,
-  overlap_warning = true,
-  cps = false,
-  cps_warning = true,
-  cps_diagnostic = false,
-  tack_enabled = true,
-  min_pause = 100,
-  min_duration = 1000,
-  max_duration = -1,
-  tack = ".",
-  tack_middle = " ",
-  max_length = 40,
-  max_length_sub = -1,
-  max_lines = -1,
-  max_cps = 21,
-  extra_spaces = 0,
-  -- modes:
-  -- "half" - split in half precisely
-  -- "length" - allocate time based on the length of the resulting text
-  split_mode = c.SPLIT_LENGTH,
-  split_with_min_pause = true,
-  -- whether fixing overlapping subtitles should add a minimum pause
-  fix_with_min_pause = true,
-  -- whether subtitles with a pause that is too short should also be fixed
-  fix_bad_min_pause = true,
-  shift_ms = 100,
-  seek_while_paused = false,
-  -- when to upload subtitles to VLC
-  -- "never" - never
-  -- "on_save" - when the buffer is saved
-  -- "on_change" - when the buffer is changed
-  sync_mode = c.SYNC_MODE_SAVE,
-  sync_jump_cur_window = true,
-  upload_on_video_jump = true,
-  add_at_seek = true,
-  rules_by_line_count = {},
-}
+local defaults = shared_config.defaults
 
 ---@type Config
 local config = vim.tbl_deep_extend("keep", defaults, {})

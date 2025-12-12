@@ -639,7 +639,7 @@ define_command_subtitle("SrtDuration", function(args, data, subs, sub_i)
       false,
       { new_timing }
     )
-  else
+  else -- 'E'
     local start_ms = sub.end_ms - shift
 
     local new_timing = subtitle.amend_start(data.lines[sub.line_pos + 1], start_ms)
