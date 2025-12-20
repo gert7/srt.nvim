@@ -10,14 +10,15 @@ local ParseErrorType = get_subs.ParseErrorType
 
 local M              = {}
 
----@param t number[]
----@param s integer
----@param f integer
+---Sum an array of numbers
+---@param arr number[]
+---@param first_i integer
+---@param last_i integer
 ---@return number
-local function sum_array(t, s, f)
+local function sum_array(arr, first_i, last_i)
   local sum = 0
-  for i = s, f do
-    sum = sum + t[i]
+  for i = first_i, last_i do
+    sum = sum + arr[i]
   end
   return sum
 end
@@ -176,6 +177,56 @@ define_command_subs("SrtMerge", function(args, data, subs)
 end, { desc = "Merge the subtitle down", range = true })
 
 
+---Calculate split point for `length` mode.
+---@param sub Subtitle
+---@param split integer
+---@return number split_ms Split point in ms
+local function calculate_split_ms(sub, split)
+  local length_first = sum_array(sub.line_lengths, 1, split)
+  local length_second = sum_array(sub.line_lengths, split + 1, #sub.line_lengths)
+  local p = length_first / (length_first + length_second)
+  return sub.start_ms + sub.length_ms * p
+end
+
+
+---Splits a subtitle in two at the designated point, considering min_pause
+---@param data Subdata Subtitle data
+---@param subs Subtitle[] Subtitles
+---@param sub_i integer Subtitle index
+---@param split_point integer Line to split on
+---@param split_ms integer Millisecond length for the first subtitle
+local function split_in_two(data, subs, sub_i, split_point, split_ms)
+  local sub = subs[sub_i]
+
+  local ind_lines = vim.api.nvim_buf_get_lines(data.buf, subs[sub_i + 1].line_pos - 1, -1, false)
+  local new_lines = add_to_indices(ind_lines, subs, sub_i + 1, 1)
+  vim.api.nvim_buf_set_lines(data.buf, subs[sub_i + 1].line_pos - 1, -1, false, new_lines)
+
+  local mp = 0
+  if data.config.split_with_min_pause then
+    mp = data.config.min_pause
+  end
+
+  local first_end = subtitle.make_dur_ms(split_ms - mp)
+  local last_start = subtitle.make_dur_ms(split_ms + mp)
+  local new_index = tostring(sub.index + 1)
+
+  local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
+  local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
+
+  vim.api.nvim_buf_set_lines(data.buf, sub.line_pos, sub.line_pos + 1, false,
+  { first_start .. first_end })
+
+  local new_header = {
+    "",
+    new_index,
+    last_start .. last_end
+  }
+
+  vim.api.nvim_buf_set_lines(data.buf, split_point, split_point, false, new_header)
+end
+
+
 define_command_subtitle("SrtSplit", function(args, data, subs, sub_i)
   local split_mode = data.config.split_mode
   if args.args ~= "" then
@@ -199,45 +250,17 @@ define_command_subtitle("SrtSplit", function(args, data, subs, sub_i)
     return
   end
 
-  local ind_lines = vim.api.nvim_buf_get_lines(data.buf, subs[sub_i + 1].line_pos - 1, -1, false)
-  local new_lines = add_to_indices(ind_lines, subs, sub_i + 1, 1)
-  vim.api.nvim_buf_set_lines(data.buf, subs[sub_i + 1].line_pos - 1, -1, false, new_lines)
-
   local split_point = sub.line_pos + 1 + line_count / 2
-
-  local mp = 0
-  if data.config.split_with_min_pause then
-    mp = data.config.min_pause
-  end
 
   local split_ms = 0
 
   if split_mode == c.SPLIT_LENGTH then
-    local length_first = sum_array(sub.line_lengths, 1, line_count / 2)
-    local length_second = sum_array(sub.line_lengths, line_count / 2 + 1, line_count)
-    local p = length_first / (length_first + length_second)
-    split_ms = sub.start_ms + sub.length_ms * p
+    split_ms = calculate_split_ms(sub, line_count / 2)
   else -- split_mode == "half"
     split_ms = sub.start_ms + sub.length_ms / 2
   end
 
-  local first_end = subtitle.make_dur_ms(split_ms - mp)
-  local last_start = subtitle.make_dur_ms(split_ms + mp)
-  local new_index = tostring(sub.index + 1)
-
-  local first_start = data.lines[sub.line_pos + 1]:sub(1, 17)
-  local last_end = data.lines[sub.line_pos + 1]:sub(13, 29)
-
-  vim.api.nvim_buf_set_lines(data.buf, sub.line_pos, sub.line_pos + 1, false,
-  { first_start .. first_end })
-
-  local new_header = {
-    "",
-    new_index,
-    last_start .. last_end
-  }
-
-  vim.api.nvim_buf_set_lines(data.buf, split_point, split_point, false, new_header)
+  split_in_two(data, subs, sub_i, split_point, split_ms)
 end, {
 desc = "Split the subtitle in two",
 nargs = "?",
@@ -245,6 +268,32 @@ complete = function()
   return { c.SPLIT_LENGTH, c.SPLIT_HALF }
 end
 })
+
+
+define_command_subtitle("SrtSlice", function (args, data, subs, sub_i)
+  local sub = subs[sub_i]
+
+  local line_count = #sub.line_lengths
+  if line_count <= 1 then
+    print("Not enough lines in subtitle")
+    return
+  end
+
+  local split_point = data.line
+
+  local check_point = (data.line - sub.line_pos) - 1
+  if check_point < 1 then
+    print("Cursor must be on a subtitle line")
+    return
+  end
+  if check_point > (line_count - 1) then
+    print("Cursor cannot be on last line")
+    return
+  end
+
+  local split_ms = calculate_split_ms(sub, check_point)
+  split_in_two(data, subs, sub_i, split_point, split_ms)
+end, { desc = "Split the subtitle at the current line" })
 
 
 ---@param buf integer

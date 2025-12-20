@@ -31,6 +31,7 @@ Time can be specified in various formats:
 - `SrtJump` - jump cursor to subtitle by index
 - `SrtMerge` - merge subtitles, with optional range selection
 - `SrtSplit` - split subtitles into two
+- `SrtSlice` - split subtitles into two at the cursor
 - `SrtSort` - sort subtitles by start time
 - `SrtFixTiming` - fix overlapping timings if possible
 - `SrtFixTimingAll` - fix all overlapping timings
@@ -172,6 +173,8 @@ Options marked with * can also be specified under `rules_by_line_count`
 The options for `split_mode` are:
 - "half" - exact split, not based on character count
 - "length" - split time allocated on character count
+
+Note that `SrtSlice` only allocates time on character count
 
 The options for `sync_mode` are:
 - "never" - never upload to VLC automatically (use `SrtVideoUpload` instead)
