@@ -30,7 +30,7 @@ Time can be specified in various formats:
 
 - `SrtJump` - jump cursor to subtitle by index
 - `SrtMerge` - merge subtitles, with optional range selection
-- `SrtSplit` - split subtitles into two
+- `SrtSplit` - split subtitles in half
 - `SrtSlice` - split subtitles into two at the cursor
 - `SrtSort` - sort subtitles by start time
 - `SrtFixTiming` - fix overlapping timings if possible
